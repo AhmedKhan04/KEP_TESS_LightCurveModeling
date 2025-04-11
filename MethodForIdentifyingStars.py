@@ -24,18 +24,19 @@ def getLightCurveData(nameOfStar):
     
 def getPeriodogramData(nameOfStar): 
     x = lk.search_targetpixelfile(nameOfStar).download()
-    y = x.to_lightcurve().remove_outliers()
+    y = x.to_lightcurve()
     z = y.to_periodogram()
     z.smooth(method='logmedian', filter_width=0.1).plot(linewidth=2,  color='red', label='Smoothed', scale='log')
     z.plot(scale = 'log')
     #return z
 
 def compGetPeriodogramData(nameOfStar): 
-    x = lk.search_targetpixelfile(nameOfStar).download()
-    y = x.to_lightcurve().remove_outliers()
-    z = y.to_periodogram()
+    x = lk.search_targetpixelfile(nameOfStar).download().to_lightcurve()
+    y = lk.search_lightcurve(nameOfStar, quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
+    
+    z = x.to_periodogram()
     #z.smooth(method='logmedian', filter_width=0.1).plot(linewidth=2,  color='red', label='Smoothed', scale='log')
-    return z
+    return z, y
 
 def GetProperites(periodogram):
     periodogram.show_properties()
@@ -48,14 +49,11 @@ def sine_model(t, amplitude, phase, frequency, offset):
     return amplitude * np.sin(2 * np.pi * frequency * t + phase) + offset
 
 def identifyPeaks(nameOfStar):
-    pg = compGetPeriodogramData(nameOfStar)
-    x = np.max(pg.power.value)
-    peaks, _ = find_peaks(pg.power, height=x)
-    while (len(peaks) <= 1):
-        x *= 0.95
-        peaks, _ = find_peaks(pg.power, height=x)
-    #pt.figure(figsize=(10, 6))
-    #pt.plot(pg.frequency, pg.power, label='Periodogram')
+    pg, lightc = compGetPeriodogramData(nameOfStar)
+    max_power = np.max(pg.power.value)
+    peaks, _ = find_peaks(pg.power, height=[max_power * 0.1, max_power * 1.1])
+    pt.figure(figsize=(10, 6))
+    pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
     #for i in x:
      #   print(i.value)
@@ -64,24 +62,25 @@ def identifyPeaks(nameOfStar):
     # Iterate through the peaks and check for closeness
     for i in range(len(x)):
         if len(filtered_peaks) == 0:
-            filtered_peaks.append(peaks[i])
+            if(x[i].value >= 1):
+                filtered_peaks.append(peaks[i])
         else:
             # current peak is close to the last added peak?
-            if np.abs(x[i].value - pg.frequency[filtered_peaks[-1]].value) >= 0.5:
+            if np.abs(x[i].value - pg.frequency[filtered_peaks[-1]].value) <= 0.3:
                 if(y[i].value > pg.power[filtered_peaks[-1]].value):
-                    filtered_peaks.append(peaks[i])
-                else: 
-                    filtered_peaks.append(peaks[-1])
-    #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-    #pt.xlabel('Frequency (cycles/day)')
-    #pt.ylabel('Power')
-    #pt.title('Periodogram with Local Maxima: '+ nameOfStar)
-    #pt.legend()
-    #pt.show()
-    return(pg.frequency[filtered_peaks])
+                    filtered_peaks[-1]= peaks[i]
+            else: 
+                filtered_peaks.append(peaks[i])
+    pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
+    pt.xlabel('Frequency (cycles/day)')
+    pt.ylabel('Power')
+    pt.title('Periodogram with Local Maxima: '+ nameOfStar)
+    pt.legend()
+    pt.show()
+    return(pg.frequency[filtered_peaks], lightc)
 
 def identifyPeaksPowerComp(nameOfStar):
-    pg = compGetPeriodogramData(nameOfStar)
+    pg, ltcurves = compGetPeriodogramData(nameOfStar)
     x = np.max(pg.power.value)
     peaks, _ = find_peaks(pg.power, height=x)
     while (len(peaks) <= 1):
@@ -108,13 +107,11 @@ def identifyPeaksPowerComp(nameOfStar):
     #pt.title('Periodogram with Local Maxima: '+ nameOfStar)
     #pt.legend()
     #pt.show()
-    return(pg.power[filtered_peaks])
+    return(pg.power[filtered_peaks], ltcurves)
 
 
 def guess(a,bounds1):
-    frequencyfitted = identifyPeaks(a)
-    search_result = lk.search_lightcurve(a, quarter=(6,7,8))
-    lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
+    frequencyfitted, lc = identifyPeaks(a)
     #lc.plot()
     #pt.show()
     b = 0 
@@ -240,10 +237,9 @@ def guessIterative(a,bound):
     #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
     return c
 
-def guess2(a):
-    frequencyfitted = identifyPeaks(a)
-    search_result = lk.search_lightcurve(a, quarter=(6,7,8))
-    lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
+def guessActual(a):
+    frequencyfitted, search_result = identifyPeaks(a)
+    lc = search_result
     #lc.plot()
     #pt.show()
     b = 0 
@@ -264,7 +260,7 @@ def guess2(a):
         offset_guess = np.mean(flux)
         
         ig = [amplitude_guess, phase_guess, frequency_guess, offset_guess]
-        x, y =  getMeanSquaredResidual(a)
+        x, y =  getMeanSquaredResidual(a,search_result)
         # Adding bounds: to force some values of amplitude
         #bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
         bounds = ([y*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
@@ -284,7 +280,7 @@ def guess2(a):
         b = b + 1
         #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
     #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
-    return params_list
+    return params_list, lc 
 
 #params_list.append((amplitude, phase, frequency, offset)) 
 
@@ -296,19 +292,19 @@ def align_arrays(time, flux):
     flux = flux[vi]
     return time, flux
 
-def getMeanSquaredResidual(a):
+def getMeanSquaredResidual(a, search_result):
         bestmeanSquare = 100000
         bestBound = 0
+        lc = search_result
         for bounds1 in range(50,60): #######
             listofsines = guess(a,bounds1)
             addedTogether = 0
-            search_result = lk.search_lightcurve(a,quarter=(6,7,8))
-            lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
             time = lc.time.value
             flux = lc.flux.value
             #flux_err = np.mean(lc.flux_err.value)
             time, flux = align_arrays(time,flux)
-            powerOfPeaks = identifyPeaksPowerComp(a).value
+            powerOfPeaks, lightcs = identifyPeaksPowerComp(a)
+            powerOfPeaks = powerOfPeaks.value
             p = 0 
             total_weight = 0 
             while (p < len(listofsines)):
@@ -363,16 +359,13 @@ def getCompositeSine(a):
         return addedTogether
 
 def getCompositeSine2(a):
-        listofsines = guess2(a)
+        listofsines, lc = guessActual(a)
         addedTogether = 0
-        search_result = lk.search_lightcurve(a,quarter=(6,7,8))
-        lc = search_result.download_all().stitch()
         time = lc.time.value
         flux = lc.flux.value
         time, flux = align_arrays(time,flux)
-        powerOfPeaks = identifyPeaksPowerComp(a).value
-
-
+        powerOfPeaks, notneeded = identifyPeaksPowerComp(a)
+        powerOfPeaks = powerOfPeaks.value
         p = 0 
         total_weight = np.sum(powerOfPeaks)
         sine_print_terms = []
@@ -389,12 +382,11 @@ def getCompositeSine2(a):
         print(f"Composite Sine Function for {a}:")
         print("f(t) = " + " + ".join(sine_print_terms))
         print(total_weight)
-        return addedTogether      
+        return addedTogether, lc     
     
 
-def plotsidebyside(a):
-    function = getCompositeSine2(a)
-    lc = lk.search_lightcurve(a,quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
+def plotsidebysideactual(a):
+    function, lc = getCompositeSine2(a)
     flux = lc.flux.value
     print(flux)
     print(function)
@@ -404,7 +396,7 @@ def plotsidebyside(a):
     time = time[:min_length]
     function = function[:min_length]
     residuals = flux - function
-    print(np.sum((residuals)**2)/len(flux))
+    print("MSE: "+ np.sum((residuals)**2)/len(flux))
     #a = 0.00219*np.sin(2*np.pi*10.33759*time+-0.21704)+ 0.54456 + 0.00183*np.sin(2*np.pi*12.47142*time+-6.28319) + 0.45546
     print(residuals)
     pt.plot(time, residuals, 'o-', color='blue', label='O-C (Observed - Calculated)')
@@ -572,8 +564,8 @@ d = ['KIC 2987660' , 'KIC 10451090' , 'KIC 8197761' , 'KIC 8623953' ,'KIC 342963
 #KIC 8197761!!!!!!!!' 'V593 Lyr',
 #getChiSquaredReduced('BO Lyn')
 #print(getChiSquared('KIC 8197761'))
-#plotsidebyside2('KIC 4733344')
-identifyPeaksOfLightcurves('KIC 9700322', 1)
+#plotsidebyside2('KIC 4733344') 
+identifyPeaks('KIC 10451090')
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
 #identifyPeaks('KIC 12602250')
