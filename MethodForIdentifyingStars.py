@@ -15,7 +15,7 @@ from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from scipy.interpolate import interp1d
 from scipy.spatial.distance import cdist
-
+from numpy import linalg as lg
 
 def getLightCurveData(nameOfStar):
     search_result = lk.search_lightcurve(nameOfStar, quarter=(6,7,8))
