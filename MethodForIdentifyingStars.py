@@ -53,7 +53,7 @@ def identifyPeaks(nameOfStar):
     max_power = np.max(pg.power.value)
     peaks, _ = find_peaks(pg.power, height=[max_power * 0.1, max_power * 1.1])
     pt.figure(figsize=(10, 6))
-    pt.plot(pg.frequency, pg.power, label='Periodogram')
+    #pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
     #for i in x:
      #   print(i.value)
@@ -71,21 +71,18 @@ def identifyPeaks(nameOfStar):
                     filtered_peaks[-1]= peaks[i]
             else: 
                 filtered_peaks.append(peaks[i])
-    pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-    pt.xlabel('Frequency (cycles/day)')
-    pt.ylabel('Power')
-    pt.title('Periodogram with Local Maxima: '+ nameOfStar)
-    pt.legend()
-    pt.show()
-    return(pg.frequency[filtered_peaks], lightc)
+    #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
+    #pt.xlabel('Frequency (cycles/day)')
+    #pt.ylabel('Power')
+    #pt.title('Periodogram with Local Maxima: '+ nameOfStar)
+    #pt.legend()
+    #pt.show()
+    return(pg.frequency[filtered_peaks], lightc, pg.power[filtered_peaks])
 
 def identifyPeaksPowerComp(nameOfStar):
     pg, ltcurves = compGetPeriodogramData(nameOfStar)
-    x = np.max(pg.power.value)
-    peaks, _ = find_peaks(pg.power, height=x)
-    while (len(peaks) <= 1):
-        x *= 0.95
-        peaks, _ = find_peaks(pg.power, height=x)
+    max_power = np.max(pg.power.value)
+    peaks, _ = find_peaks(pg.power, height=[max_power * 0.1, max_power * 1.1])
     #pt.figure(figsize=(10, 6))
     #pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
@@ -96,11 +93,15 @@ def identifyPeaksPowerComp(nameOfStar):
     # Iterate through the peaks and check for closeness
     for i in range(len(x)):
         if len(filtered_peaks) == 0:
-            filtered_peaks.append(peaks[i])
+            if(x[i].value >= 1):
+                filtered_peaks.append(peaks[i])
         else:
             # current peak is close to the last added peak?
-            if np.abs(x[i].value - pg.frequency[filtered_peaks[-1]].value) >= 0.5:
-                    filtered_peaks.append(peaks[i])
+            if np.abs(x[i].value - pg.frequency[filtered_peaks[-1]].value) <= 0.3:
+                if(y[i].value > pg.power[filtered_peaks[-1]].value):
+                    filtered_peaks[-1]= peaks[i]
+            else: 
+                filtered_peaks.append(peaks[i])
     #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
     #pt.xlabel('Frequency (cycles/day)')
     #pt.ylabel('Power')
@@ -110,8 +111,9 @@ def identifyPeaksPowerComp(nameOfStar):
     return(pg.power[filtered_peaks], ltcurves)
 
 
-def guess(a,bounds1):
-    frequencyfitted, lc = identifyPeaks(a)
+def guessHelper(a,bounds1,search_result, frequencyfitted):
+    #frequencyfitted, lc = identifyPeaks(a)
+    lc = search_result
     #lc.plot()
     #pt.show()
     b = 0 
@@ -238,29 +240,31 @@ def guessIterative(a,bound):
     return c
 
 def guessActual(a):
-    frequencyfitted, search_result = identifyPeaks(a)
+    frequencyfitted, search_result, powers = identifyPeaks(a)
     lc = search_result
     #lc.plot()
     #pt.show()
     b = 0 
     c = []
     params_list = []
-    while b < len(frequencyfitted):
-        #Foldedlc = lc.fold(period = (1 / frequencyfitted[b].value))
-        time = lc.time.value
-        flux =  lc.flux.value
-        vi = np.isfinite(time) & np.isfinite(flux)
-        time = time[vi]
-        flux = flux[vi]
+    time = lc.time.value
+    flux =  lc.flux.value
+    vi = np.isfinite(time) & np.isfinite(flux)
+    time = time[vi]
+    flux = flux[vi]
+    flux_range = np.percentile(flux, 95) - np.percentile(flux, 5)
+    amplitude_guess = flux_range
+    phase_guess = 0 
+    offset_guess = np.mean(flux)
+    print(f"need to iterate: +  {len(frequencyfitted)} + times")
 
-        flux_range = np.percentile(flux, 95) - np.percentile(flux, 5)
-        amplitude_guess = flux_range
-        phase_guess = 0  
+    while b < len(frequencyfitted):
+
+        #Foldedlc = lc.fold(period = (1 / frequencyfitted[b].value))
+ 
         frequency_guess = frequencyfitted[b].value
-        offset_guess = np.mean(flux)
-        
         ig = [amplitude_guess, phase_guess, frequency_guess, offset_guess]
-        x, y =  getMeanSquaredResidual(a,search_result)
+        x, y =  getMeanSquaredResidual(a,search_result, frequencyfitted, powers)
         # Adding bounds: to force some values of amplitude
         #bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
         bounds = ([y*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
@@ -277,14 +281,12 @@ def guessActual(a):
         #meanSquare = np.sum((residuals)**2)/len(flux)
         c.append(fit_c)
         params_list.append((amplitude, phase, frequency, offset)) 
-        b = b + 1
+        b += 1
         #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
     #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
     return params_list, lc 
 
 #params_list.append((amplitude, phase, frequency, offset)) 
-
-
 
 def align_arrays(time, flux):
     vi = np.isfinite(time) & np.isfinite(flux)
@@ -292,25 +294,25 @@ def align_arrays(time, flux):
     flux = flux[vi]
     return time, flux
 
-def getMeanSquaredResidual(a, search_result):
+def getMeanSquaredResidual(a, search_result, frequency, powerofpeaks_arg):
         bestmeanSquare = 100000
         bestBound = 0
         lc = search_result
-        for bounds1 in range(50,60): #######
-            listofsines = guess(a,bounds1)
+        for bounds1 in range(54,56): #######
+            listofsines = guessHelper(a,bounds1, search_result, frequency)
             addedTogether = 0
             time = lc.time.value
             flux = lc.flux.value
             #flux_err = np.mean(lc.flux_err.value)
             time, flux = align_arrays(time,flux)
-            powerOfPeaks, lightcs = identifyPeaksPowerComp(a)
+            powerOfPeaks = powerofpeaks_arg
             powerOfPeaks = powerOfPeaks.value
             p = 0 
             total_weight = 0 
-            while (p < len(listofsines)):
+            while (p < len(powerOfPeaks)):
                 sinInterpolated = interpolate(time, listofsines[p], time)
                 weight = powerOfPeaks[p]
-                print(weight) 
+                #print(weight) 
                 total_weight += weight
                 addedTogether += (weight * sinInterpolated)
                 p += 1
@@ -320,8 +322,8 @@ def getMeanSquaredResidual(a, search_result):
                 if(meanSquare < bestmeanSquare):
                     bestmeanSquare = meanSquare
                     bestBound = bounds1
-                    print(meanSquare)
-                    print(bounds1/100)
+                    #print(meanSquare)
+                    #print(bounds1/100)
         #al = len(flux)  
         #p = 4 * len(listofsines)  
         #reduced_chi_squared = chi_squared / (al - p)
@@ -343,7 +345,7 @@ def getCompositeSine(a):
         p = 0 
         total_weight = 0 
         sine_print_terms = []
-        while (p < len(listofsines)):
+        while (p < len(powerOfPeaks)):
            #amplitude, phase, frequency, offset = listofsines[p]
            sinInterpolated = interpolate(time, listofsines[p], time)
            weight = powerOfPeaks[p]
@@ -359,17 +361,19 @@ def getCompositeSine(a):
         return addedTogether
 
 def getCompositeSine2(a):
+        powerOfPeaks, _ = identifyPeaksPowerComp(a)
+        print(len(powerOfPeaks))
+        powerOfPeaks = powerOfPeaks.value
         listofsines, lc = guessActual(a)
         addedTogether = 0
         time = lc.time.value
         flux = lc.flux.value
         time, flux = align_arrays(time,flux)
-        powerOfPeaks, notneeded = identifyPeaksPowerComp(a)
-        powerOfPeaks = powerOfPeaks.value
         p = 0 
         total_weight = np.sum(powerOfPeaks)
         sine_print_terms = []
-        while (p < len(listofsines)):
+        while (p < len(powerOfPeaks)):
+           
             amplitude, phase, frequency, offset = listofsines[p]
             sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
             weight = powerOfPeaks[p]  
@@ -396,7 +400,7 @@ def plotsidebysideactual(a):
     time = time[:min_length]
     function = function[:min_length]
     residuals = flux - function
-    print("MSE: "+ np.sum((residuals)**2)/len(flux))
+    print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
     #a = 0.00219*np.sin(2*np.pi*10.33759*time+-0.21704)+ 0.54456 + 0.00183*np.sin(2*np.pi*12.47142*time+-6.28319) + 0.45546
     print(residuals)
     pt.plot(time, residuals, 'o-', color='blue', label='O-C (Observed - Calculated)')
@@ -458,7 +462,7 @@ def guessIteration(a):
     search_result = lk.search_lightcurve(a, quarter=(6,7,8))
     c = []
     while x < len(search_result):
-       currentchi = guess(a, x)
+       currentchi = guessHelper(a, x)
        c.append(currentchi)
        x = x + 1
     #print(f"Reduced Chi-squared Mean: {np.mean(c):.3f}")
@@ -480,7 +484,7 @@ def getInfomation(listofStars):
         print(b.target_name)
 
 def identifyPeaksOfLightcurves(nameofStar,startingTime): 
-    Composite_function = getCompositeSine(nameofStar) #2
+    Composite_function = getCompositeSine2(nameofStar) #2
     search_result = lk.search_lightcurve(nameofStar,quarter=(6,7,8))
     lc = search_result.download_all().stitch()
     time = lc.time.value
@@ -557,7 +561,7 @@ def identifyPeaksOfLightcurves(nameofStar,startingTime):
 #identifyPeaks('X Caeli')
 #identifyPeaks('X Caeli')
 a = ['KIC 12602250', 'KIC 9700322','KIC 4048494', 'KIC 6951642', 'KIC 8623953', 'KIC 8197761']
-b = [ 'KIC 3429637', 'KIC 10451090', 'KIC 2987660']
+b = ['KIC 3429637', 'KIC 10451090', 'KIC 2987660']
 c = ['KIC 12602250' , 'KIC 9700322' , 'KIC 8197761' , 'KIC 8623953' ,  'KIC 6382916' ,'KIC 3429637']
 d = ['KIC 2987660' , 'KIC 10451090' , 'KIC 8197761' , 'KIC 8623953' ,'KIC 3429637']
 
@@ -565,7 +569,7 @@ d = ['KIC 2987660' , 'KIC 10451090' , 'KIC 8197761' , 'KIC 8623953' ,'KIC 342963
 #getChiSquaredReduced('BO Lyn')
 #print(getChiSquared('KIC 8197761'))
 #plotsidebyside2('KIC 4733344') 
-identifyPeaks('KIC 10451090')
+plotsidebysideactual('KIC 3429637')
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
 #identifyPeaks('KIC 12602250')
