@@ -126,8 +126,8 @@ def guessHelper(a,bounds1,search_result, frequencyfitted):
         time = time[vi]
         flux = flux[vi]
       
-        flux_range = np.percentile(flux, 95) - np.percentile(flux, 5)
-        amplitude_guess = flux_range
+        flux_range = (np.percentile(flux, 95) - np.percentile(flux, 5))
+        amplitude_guess = flux_range * 0.5
         phase_guess = 0  
         frequency_guess = frequencyfitted[b].value
         offset_guess = np.mean(flux)
@@ -136,12 +136,12 @@ def guessHelper(a,bounds1,search_result, frequencyfitted):
         
         # Adding bounds: to force some values
         #bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-        bounds = ([(bounds1/100)*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
+        bounds = ([0.95 * amplitude_guess, 0, 0.9*frequency_guess, np.min(flux)], [1.05 * amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
 
         if len(time) == 0 or len(flux) == 0:
             raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
-        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=10000, method='trf')
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=10000, method='dogbox')
         amplitude, phase, frequency, offset = params
         
         fit_c = sine_model(time, *params)  
@@ -273,7 +273,7 @@ def guessActual(a):
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
-        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=10000, method='trf')
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=10000, method='dogbox')
         amplitude, phase, frequency, offset = params
         fit_c = sine_model(time, *params)
         #amplitude, phase, frequency, offset = params
