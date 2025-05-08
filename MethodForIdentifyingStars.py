@@ -249,6 +249,7 @@ def guessActual(a):
     params_list = []
     time = lc.time.value
     flux =  lc.flux.value
+    print(f"need to iterate: +  {len(frequencyfitted)} + times")
     vi = np.isfinite(time) & np.isfinite(flux)
     time = time[vi]
     flux = flux[vi]
@@ -256,24 +257,21 @@ def guessActual(a):
     amplitude_guess = flux_range
     phase_guess = 0 
     offset_guess = np.mean(flux)
-    print(f"need to iterate: +  {len(frequencyfitted)} + times")
-
     while b < len(frequencyfitted):
-
+        
         #Foldedlc = lc.fold(period = (1 / frequencyfitted[b].value))
  
         frequency_guess = frequencyfitted[b].value
-        ig = [amplitude_guess, phase_guess, frequency_guess, offset_guess]
-        x, y =  getMeanSquaredResidual(a,search_result, frequencyfitted, powers)
+        ig = [0.75*amplitude_guess, phase_guess, frequency_guess, offset_guess]
         # Adding bounds: to force some values of amplitude
-        #bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-        bounds = ([y*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-
+        bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+        #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
+        #WORK AND FIX THIS PART
 
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
-        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=10000, method='dogbox')
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox')
         amplitude, phase, frequency, offset = params
         fit_c = sine_model(time, *params)
         #amplitude, phase, frequency, offset = params
@@ -282,6 +280,7 @@ def guessActual(a):
         c.append(fit_c)
         params_list.append((amplitude, phase, frequency, offset)) 
         b += 1
+        #flux -= fit_c
         #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
     #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
     return params_list, lc 
