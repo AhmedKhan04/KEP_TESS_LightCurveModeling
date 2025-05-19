@@ -295,24 +295,29 @@ def guessActual_refined(a):
     params_list = []
     time = lc.time.value
     flux =  lc.flux.value
+    flux_org = flux
     print(f"need to iterate: +  {len(frequencyfitted)} + times")
     vi = np.isfinite(time) & np.isfinite(flux)
     time = time[vi]
     flux = flux[vi]
-    flux_range = np.percentile(flux, 95) - np.percentile(flux, 5)
-    amplitude_guess = flux_range
-    phase_guess = 0 
-    offset_guess = np.mean(flux)
+     
+    total_power = np.sum(powers)
     while b < len(frequencyfitted):
-        
+        flux = flux_org * (powers[b]/total_power)
+        offset_guess = np.mean(flux)
+        flux_range = np.percentile(flux, 95) - np.percentile(flux, 5)
+        amplitude_guess = flux_range
+        phase_guess = 0
         #Foldedlc = lc.fold(period = (1 / frequencyfitted[b].value))
  
         frequency_guess = frequencyfitted[b].value
-        ig = [0.75*amplitude_guess, phase_guess, frequency_guess, offset_guess]
+        amplitude_guess_scale = 0.75
+        ig = [amplitude_guess_scale*amplitude_guess, phase_guess, frequency_guess, offset_guess]
         # Adding bounds: to force some values of amplitude
-        bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+        amplitude_scale = 0.5
+        bounds = ([amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
         #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-        #WORK AND FIX THIS PART
+        #Neutral 
 
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
@@ -320,24 +325,219 @@ def guessActual_refined(a):
         params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox')
         amplitude, phase, frequency, offset = params
         fit_c = sine_model(time, *params)
-        ig_refined = [amplitude + 0.00001, phase, frequency, offset]
+        bestmean = getResiduals(fit_c, flux)
+        bestFitAchieved = False
+
+        while not bestFitAchieved:
+            low_amplitude_scale = amplitude_scale * 0.9
+            high_amplitude_scale = amplitude_scale * 1.1
+            low_amplitude_guess_scale = low_amplitude_scale * 1.1
+            high_amplitude_guess_scale = high_amplitude_scale * 1.1
+            
+            # Prepare initial guesses and bounds
+            ig_low = [low_amplitude_guess_scale * amplitude_guess, phase_guess, frequency_guess, offset_guess]
+            ig_high = [high_amplitude_guess_scale * amplitude_guess, phase_guess, frequency_guess, offset_guess]
+            
+            bounds_low = ([low_amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], 
+                        [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.percentile(flux,95)])
+            bounds_high = ([high_amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], 
+                        [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.percentile(flux,95)])
+            
+            # Try all three fits (low, current, high)
+            try:
+                params_low, _ = curve_fit(sine_model, time, flux, p0=ig_low, bounds=bounds_low, method='dogbox')
+                fit_low = sine_model(time, *params_low)
+                fit_low_MSE = getResiduals(fit_low, flux)
+            except:
+                fit_low_MSE = np.inf
+                
+            try:
+                params_high, _ = curve_fit(sine_model, time, flux, p0=ig_high, bounds=bounds_high, method='dogbox')
+                fit_high = sine_model(time, *params_high)
+                fit_high_MSE = getResiduals(fit_high, flux)
+            except:
+                fit_high_MSE = np.inf
+            
+            current_MSE = bestmean
+            
+            # Compare all three options
+            options = [
+                ('low', fit_low_MSE, params_low, low_amplitude_scale),
+                ('current', current_MSE, params, amplitude_scale),
+                ('high', fit_high_MSE, params_high, high_amplitude_scale)
+            ]
+            
+            # Find the best option
+            best_option = min(options, key=lambda x: x[1])
+            
+            if best_option[0] == 'current':
+                bestFitAchieved = True
+                print("-1")
+            else:
+                # Update to the better option
+                bestmean = best_option[1]
+                params = best_option[2]
+                amplitude_scale = best_option[3]
+                fit_c = sine_model(time, *params)
+                print(f"Switching to {best_option[0]} fit")
+        """
+        while(bestFitAchieved == False): 
+            low_amplitude_scale = amplitude_scale*  0.9
+            high_amplitude_scale =  amplitude_scale*  1.1
+            low_amplitude_guess_scale = low_amplitude_scale * 1.1
+            high_amplitude_guess_scale = high_amplitude_scale * 1.1
+            ig_low = [low_amplitude_guess_scale * amplitude_guess, phase_guess, frequency_guess, offset_guess]
+            ig_high =  [high_amplitude_guess_scale * amplitude_guess, phase_guess, frequency_guess, offset_guess]
+            bounds_high = ([high_amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [ amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+            bounds_low = ([low_amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [ amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+            
+            params_low, _ = curve_fit(sine_model, time, flux, p0=ig_low, bounds=bounds_low, method='dogbox')
+            params_high, _ = curve_fit(sine_model, time, flux, p0=ig_high, bounds=bounds_high, method='dogbox')
+            fit_low = sine_model(time, *params_low)
+            fit_high = sine_model(time, *params_high)
+            fit_low_MSE = getResiduals(fit_low, flux)
+            fit_high_MSE = getResiduals(fit_high, flux)
+            order_fit = np.array([fit_low, fit_high, fit_c])
+            order_arg = np.array([fit_low_MSE, fit_high_MSE, bestmean])
+            order_params = np.array([params_low, params_high])
+            #order_scales_guess = np.array([low_amplitude_guess_scale, high_amplitude_guess_scale])
+            order_scales = np.array([low_amplitude_scale, high_amplitude_scale])
+            best_index = np.argmin(order_arg)
+            minimum_val = np.min(order_arg)
+            if best_index != 2:
+                print(best_index)
+                bestmean = order_arg[best_index]
+                amplitude_scale = order_scales[best_index]
+                fit_c = order_fit[best_index]
+                params = order_params[best_index]
+            else:
+              bestFitAchieved = True
+              print("-1")
+              break
+            """
+
+            
+
+        #ig_refined = [amplitude + 0.00001, phase, frequency, offset]
         #amplitude, phase, frequency, offset = params
         #residuals = flux - (fit_c)
         #meanSquare = np.sum((residuals)**2)/len(flux)
-        bounds_refined =  ([amplitude, -2*np.pi, frequency * 0.8, np.percentile(flux,5)], [amplitude * 1.5, 2*np.pi, frequency * 1.2,  np.percentile(flux,95)])
-        params_refined, _ = curve_fit(sine_model, time, flux, p0=ig_refined, bounds=bounds_refined, method='dogbox')
-        amplitude, phase, frequency, offset = params_refined
-        fit_refined = sine_model(time, *params_refined)
-        c.append(fit_refined)
+        #bounds_refined =  ([amplitude, -2*np.pi, frequency * 0.8, np.percentile(flux,5)], [amplitude * 1.5, 2*np.pi, frequency * 1.2,  np.percentile(flux,95)])
+        #params_refined, _ = curve_fit(sine_model, time, flux, p0=ig_refined, bounds=bounds_refined, method='dogbox')
+        #amplitude, phase, frequency, offset = params
+        #fit_refined = sine_model(time, *params_refined)
+        c.append(fit_c)
 
-
+        amplitude, phase, frequency, offset = params
         params_list.append((amplitude, phase, frequency, offset)) 
         b += 1
-        #flux -= fit_c
+        
         #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
     #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
     return params_list, lc 
 #params_list.append((amplitude, phase, frequency, offset)) 
+
+def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_result, powers):
+    lc = search_result
+    #lc.plot()
+    #pt.show()
+    b = 0 
+    c = []
+    params_list = []
+    time = lc.time.value
+    flux =  lc.flux.value
+    flux_org = flux
+    print(f"need to iterate: +  {len(frequencyfitted)} + times")
+    vi = np.isfinite(time) & np.isfinite(flux)
+    time = time[vi]
+    flux = flux[vi]
+     
+
+    while b < len(frequencyfitted):
+        offset_guess = np.mean(flux)
+        flux_range = np.percentile(flux, 95) - np.percentile(flux, 5)
+        amplitude_guess = flux_range
+        amplitude_guess_upper = amplitude_guess
+        phase_guess = 0
+        #Foldedlc = lc.fold(period = (1 / frequencyfitted[b].value))
+ 
+        frequency_guess = frequencyfitted[b].value
+        amplitude_guess_scale =  scalar * 1.5
+        ig = [amplitude_guess_scale*amplitude_guess, phase_guess, frequency_guess, offset_guess]
+        # Adding bounds: to force some values of amplitude
+        amplitude_scale = scalar
+        if(amplitude_guess_scale>= 1):
+            amplitude_guess_upper *= (amplitude_guess_scale + 0.2)
+
+        bounds = ([amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess_upper, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+        #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
+        #Neutral 
+
+        if len(time) == 0 or len(flux) == 0:
+              raise ValueError("After cleaning, the time or flux array is empty.")
+        #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox', maxfev=5000)
+        amplitude, phase, frequency, offset = params
+        fit_c = sine_model(time, *params)
+        
+        """
+        while(bestFitAchieved == False): 
+            low_amplitude_scale = amplitude_scale*  0.9
+            high_amplitude_scale =  amplitude_scale*  1.1
+            low_amplitude_guess_scale = low_amplitude_scale * 1.1
+            high_amplitude_guess_scale = high_amplitude_scale * 1.1
+            ig_low = [low_amplitude_guess_scale * amplitude_guess, phase_guess, frequency_guess, offset_guess]
+            ig_high =  [high_amplitude_guess_scale * amplitude_guess, phase_guess, frequency_guess, offset_guess]
+            bounds_high = ([high_amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [ amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+            bounds_low = ([low_amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [ amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+            
+            params_low, _ = curve_fit(sine_model, time, flux, p0=ig_low, bounds=bounds_low, method='dogbox')
+            params_high, _ = curve_fit(sine_model, time, flux, p0=ig_high, bounds=bounds_high, method='dogbox')
+            fit_low = sine_model(time, *params_low)
+            fit_high = sine_model(time, *params_high)
+            fit_low_MSE = getResiduals(fit_low, flux)
+            fit_high_MSE = getResiduals(fit_high, flux)
+            order_fit = np.array([fit_low, fit_high, fit_c])
+            order_arg = np.array([fit_low_MSE, fit_high_MSE, bestmean])
+            order_params = np.array([params_low, params_high])
+            #order_scales_guess = np.array([low_amplitude_guess_scale, high_amplitude_guess_scale])
+            order_scales = np.array([low_amplitude_scale, high_amplitude_scale])
+            best_index = np.argmin(order_arg)
+            minimum_val = np.min(order_arg)
+            if best_index != 2:
+                print(best_index)
+                bestmean = order_arg[best_index]
+                amplitude_scale = order_scales[best_index]
+                fit_c = order_fit[best_index]
+                params = order_params[best_index]
+            else:
+              bestFitAchieved = True
+              print("-1")
+              break
+            """
+
+            
+
+        #ig_refined = [amplitude + 0.00001, phase, frequency, offset]
+        #amplitude, phase, frequency, offset = params
+        #residuals = flux - (fit_c)
+        #meanSquare = np.sum((residuals)**2)/len(flux)
+        #bounds_refined =  ([amplitude, -2*np.pi, frequency * 0.8, np.percentile(flux,5)], [amplitude * 1.5, 2*np.pi, frequency * 1.2,  np.percentile(flux,95)])
+        #params_refined, _ = curve_fit(sine_model, time, flux, p0=ig_refined, bounds=bounds_refined, method='dogbox')
+        #amplitude, phase, frequency, offset = params
+        #fit_refined = sine_model(time, *params_refined)
+        c.append(fit_c)
+
+        amplitude, phase, frequency, offset = params
+        params_list.append((amplitude, phase, frequency, offset)) 
+        b += 1
+        print("passed")
+        #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
+    #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
+    return params_list, lc, c
+#params_list.append((amplitude, phase, frequency, offset)) 
+
+
 
 def align_arrays(time, flux):
     vi = np.isfinite(time) & np.isfinite(flux)
@@ -381,6 +581,13 @@ def getMeanSquaredResidual(a, search_result, frequency, powerofpeaks_arg):
         #return reduced_chi_squared
         print(bestmeanSquare)
         return bestmeanSquare, bestBound/100
+
+
+def getResiduals(fit, flux): 
+    residuals = flux - fit
+    meanSquare = np.sum((residuals)**2)/len(flux)
+    return meanSquare
+
 
 def getCompositeSine(a):
         listofsines = guessLegacy(a,0)
@@ -431,6 +638,7 @@ def getCompositeSine2(a):
             amplitude = amplitude * (weight/total_weight)
             offset = offset * (weight/total_weight)
             addedTogether += (weight/total_weight) * sinInterpolated
+            #addedTogether += sinInterpolated
             sine_print_terms.append(f"{amplitude:.4f} * sin(2π * {frequency:.4f} * t + {phase:.4f}) + {offset:.4f}")
             p += 1
         #addedTogether  = addedTogether/total_weight
@@ -438,10 +646,107 @@ def getCompositeSine2(a):
         print("f(t) = " + " + ".join(sine_print_terms))
         print(total_weight)
         return addedTogether, lc     
-    
+
+
+def getCompositeSine2_second_test(a):
+        powerOfPeaks, _ = identifyPeaksPowerComp(a)
+        print(len(powerOfPeaks))
+        powerOfPeaks = powerOfPeaks.value
+        frequencyfitted2, search_result2, powers2 = identifyPeaks(a)
+        amplitude_scale = 0.5
+        listofsines, lc, _ = guessActual_refined_second_iteration(a, amplitude_scale, frequencyfitted2, search_result2, powers2)
+        listofindexs =[]
+        addedTogether = 0
+        time = lc.time.value
+        flux = lc.flux.value
+        time, flux = align_arrays(time,flux)
+        p = 0 
+        total_weight = np.sum(powerOfPeaks)
+        sine_print_terms = []
+
+        
+        while (p < len(powerOfPeaks)):
+           
+            amplitude, phase, frequency, offset = listofsines[p]
+            sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
+            weight = powerOfPeaks[p]  
+            amplitude = amplitude * (weight/total_weight)
+            offset = offset * (weight/total_weight)
+            addedTogether += (weight/total_weight) * sinInterpolated
+            p+=1
+        bestmean = getResiduals(addedTogether, flux)
+        bestFitAchieved = False
+        while(bestFitAchieved == False): 
+            low_amplitude_scale = amplitude_scale*  0.9
+            high_amplitude_scale =  amplitude_scale*  1.1
+            
+            lower, _,fits_low = guessActual_refined_second_iteration(a, low_amplitude_scale, frequencyfitted2, search_result2, powers2)
+            upper, _, fits_high = guessActual_refined_second_iteration(a, high_amplitude_scale, frequencyfitted2, search_result2, powers2)
+            lowertot = 0
+            uppertot = 0 
+            countinner = 0
+            while (countinner < len(powerOfPeaks)):
+           
+                amplitude, phase, frequency, offset = lower[countinner]
+                sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
+                weight = powerOfPeaks[countinner]  
+                amplitude = amplitude * (weight/total_weight)
+                offset = offset * (weight/total_weight)
+                lowertot += (weight/total_weight) * sinInterpolated
+
+                amplitude, phase, frequency, offset = upper[countinner]
+                sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
+                weight = powerOfPeaks[countinner]  
+                amplitude = amplitude * (weight/total_weight)
+                offset = offset * (weight/total_weight)
+                uppertot += (weight/total_weight) * sinInterpolated
+
+                countinner+=1
+            print(lowertot, uppertot)
+            fit_low_MSE = getResiduals(lowertot, flux)
+            fit_high_MSE = getResiduals(uppertot, flux)
+            order_fit = np.array([lowertot, uppertot, addedTogether])
+            order_arg = np.array([fit_low_MSE, fit_high_MSE, bestmean])
+            order_params = np.array([lower, upper])
+            #order_scales_guess = np.array([low_amplitude_guess_scale, high_amplitude_guess_scale])
+            order_scales = np.array([low_amplitude_scale, high_amplitude_scale])
+            best_index = np.argmin(order_arg)
+            minimum_val = np.min(order_arg)
+            listofindexs.append(best_index)
+            if (best_index < 2):
+                print(best_index)
+                bestmean = order_arg[best_index]
+                amplitude_scale = order_scales[best_index]
+                listofsines = order_params[best_index]
+                addedTogether = order_fit[best_index]
+            else:
+              bestFitAchieved = True
+              print("-1")
+              break
+        count = 0 
+        newaddedtogether = 0
+        while (count < len(powerOfPeaks)):
+           
+            amplitude, phase, frequency, offset = listofsines[count]
+            sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
+            weight = powerOfPeaks[count]  
+            amplitude = amplitude * (weight/total_weight)
+            offset = offset * (weight/total_weight)
+            newaddedtogether += (weight/total_weight) * sinInterpolated
+            #addedTogether += sinInterpolated
+            sine_print_terms.append(f"{amplitude:.4f} * sin(2π * {frequency:.4f} * t + {phase:.4f}) + {offset:.4f}")
+            count += 1
+        #addedTogether  = addedTogether/total_weight
+        print(f"Composite Sine Function for {a}:")
+        print("f(t) = " + " + ".join(sine_print_terms))
+        print(total_weight)
+        print(listofindexs)
+        return newaddedtogether, lc     
+
+
 
 def plotsidebysideactual(a):
-    function, lc = getCompositeSine2(a)
+    function, lc = getCompositeSine2_second_test(a)
     flux = lc.flux.value
     print(flux)
     print(function)
@@ -620,7 +925,8 @@ d = ['KIC 2987660' , 'KIC 10451090' , 'KIC 8197761' , 'KIC 8623953' ,'KIC 342963
 #getChiSquaredReduced('BO Lyn')
 #print(getChiSquared('KIC 8197761'))
 #plotsidebyside2('KIC 4733344') 
-plotsidebysideactual('KIC 2987660')
+#12602250
+plotsidebysideactual('KIC 3429637')
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
 #identifyPeaks('KIC 12602250')
