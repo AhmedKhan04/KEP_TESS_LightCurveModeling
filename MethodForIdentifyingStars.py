@@ -15,11 +15,11 @@ from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from scipy.interpolate import interp1d
 from scipy.spatial.distance import cdist
-
+import pandas as pd
 
 def getLightCurveData(nameOfStar):
     search_result = lk.search_lightcurve(nameOfStar, quarter=(6,7,8))
-    lc = search_result.download()
+    lc = search_result.download_all()
     #Modeling(l    lc.plot()
     
 def getPeriodogramData(nameOfStar): 
@@ -32,8 +32,8 @@ def getPeriodogramData(nameOfStar):
 
 def compGetPeriodogramData(nameOfStar): 
     x = lk.search_targetpixelfile(nameOfStar).download().to_lightcurve()
-    y = lk.search_lightcurve(nameOfStar, quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
-    
+    y = lk.search_lightcurve(nameOfStar).download_all().stitch().remove_outliers(sigma = 5.0)
+    ## quarter term ^^^  y = lk.search_lightcurve(nameOfStar, quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
     z = x.to_periodogram()
     #z.smooth(method='logmedian', filter_width=0.1).plot(linewidth=2,  color='red', label='Smoothed', scale='log')
     return z, y
@@ -48,10 +48,10 @@ def GetProperites(periodogram):
 def sine_model(t, amplitude, phase, frequency, offset):
     return amplitude * np.sin(2 * np.pi * frequency * t + phase) + offset
 
-def identifyPeaks(nameOfStar):
+def identifyPeaks(nameOfStar, lowerscalar = 0.1):
     pg, lightc = compGetPeriodogramData(nameOfStar)
     max_power = np.max(pg.power.value)
-    peaks, _ = find_peaks(pg.power, height=[max_power * 0.1, max_power * 1.1])
+    peaks, _ = find_peaks(pg.power, height=[max_power * lowerscalar, max_power * 1.1])
     pt.figure(figsize=(10, 6))
     #pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
@@ -71,6 +71,8 @@ def identifyPeaks(nameOfStar):
                     filtered_peaks[-1]= peaks[i]
             else: 
                 filtered_peaks.append(peaks[i])
+    if(len(pg.frequency[filtered_peaks]) > 10):
+        return -1, 0        
     #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
     #pt.xlabel('Frequency (cycles/day)')
     #pt.ylabel('Power')
@@ -102,6 +104,8 @@ def identifyPeaksPowerComp(nameOfStar):
                     filtered_peaks[-1]= peaks[i]
             else: 
                 filtered_peaks.append(peaks[i])
+    if(len(pg.frequency[filtered_peaks]) > 10):
+        return -1, 0
     #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
     #pt.xlabel('Frequency (cycles/day)')
     #pt.ylabel('Power')
@@ -650,6 +654,8 @@ def getCompositeSine2(a):
 
 def getCompositeSine2_second_test(a):
         powerOfPeaks, _ = identifyPeaksPowerComp(a)
+        if(powerOfPeaks == -1):
+            return -10, 0
         print(len(powerOfPeaks))
         powerOfPeaks = powerOfPeaks.value
         frequencyfitted2, search_result2, powers2 = identifyPeaks(a)
@@ -665,7 +671,7 @@ def getCompositeSine2_second_test(a):
         sine_print_terms = []
 
         
-        while (p < len(powerOfPeaks)):
+        while (p < len(listofsines)):
            
             amplitude, phase, frequency, offset = listofsines[p]
             sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
@@ -685,7 +691,7 @@ def getCompositeSine2_second_test(a):
             lowertot = 0
             uppertot = 0 
             countinner = 0
-            while (countinner < len(powerOfPeaks)):
+            while (countinner < len(listofsines)):
            
                 amplitude, phase, frequency, offset = lower[countinner]
                 sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
@@ -725,7 +731,7 @@ def getCompositeSine2_second_test(a):
               break
         count = 0 
         newaddedtogether = 0
-        while (count < len(powerOfPeaks)):
+        while (count < len(listofsines)):
            
             amplitude, phase, frequency, offset = listofsines[count]
             sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
@@ -903,9 +909,37 @@ def identifyPeaksOfLightcurves(nameofStar,startingTime):
     print("Snipped matched_lightcurve_peaks:", matched_lightcurve_peaks_snipped[:10])
     print("StartingTime (index to cut):", startingTime)
                 
+def load_tic_ids_from_csv(csv_file_path):
+    try:
+        df = pd.read_csv(csv_file_path)
+        
+        if 'TIC_ID' not in df.columns:
+            raise ValueError("CSV does not contain a 'TIC_ID' column.")
+        
+        tic_list = df['TIC_ID'].dropna().astype(int).tolist()
+        return tic_list
+    
+    except Exception as e:
+        print(f"Error loading TIC IDs: {e}")
+        return []
 
+print(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 
-
+def seriesofstarsTest(listofstars):
+    for star in listofstars:
+        function, lc = getCompositeSine2_second_test(f"TIC {star}")
+        if(function == -10):
+            continue 
+        flux = lc.flux.value
+        print(flux)
+        print(function)
+        time = lc.time.value
+        min_length = min(len(flux), len(function))
+        flux = flux[:min_length]
+        time = time[:min_length]
+        function = function[:min_length]
+        residuals = flux - function
+        print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
 
 
 #print(percenterror(-216, -258 ))
@@ -926,7 +960,10 @@ d = ['KIC 2987660' , 'KIC 10451090' , 'KIC 8197761' , 'KIC 8623953' ,'KIC 342963
 #print(getChiSquared('KIC 8197761'))
 #plotsidebyside2('KIC 4733344') 
 #12602250
-plotsidebysideactual('KIC 3429637')
+#g, h = compGetPeriodogramData('TIC 467355168') ###
+#g.plot()
+seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
+#plotsidebysideactual("TIC 398336271")
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
 #identifyPeaks('KIC 12602250')
@@ -936,6 +973,7 @@ plotsidebysideactual('KIC 3429637')
 #pt.title("Light Curve for KIC 3429637")
 #pt.xlabel("Time (Days)")
 #pt.ylabel("Flux")
+#seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 pt.show()
 
 
