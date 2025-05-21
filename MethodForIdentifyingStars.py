@@ -145,7 +145,7 @@ def guessHelper(a,bounds1,search_result, frequencyfitted):
         if len(time) == 0 or len(flux) == 0:
             raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
-        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=10000, method='dogbox')
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=999999999, method='dogbox')
         amplitude, phase, frequency, offset = params
         
         fit_c = sine_model(time, *params)  
@@ -186,7 +186,7 @@ def guessLegacy(a,bounds1):
         if len(time) == 0 or len(flux) == 0:
             raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
-        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=10000, method='trf')
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=999999999, method='trf')
         amplitude, phase, frequency, offset = params
         
         fit_c = sine_model(time, *params)  
@@ -228,7 +228,7 @@ def guessIterative(a,bound):
         if len(time) == 0 or len(flux) == 0:
             raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
-        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=10000, method='trf')
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, maxfev=999999999, method='trf')
         amplitude, phase, frequency, offset = params
         fit_c = sine_model(time, *params)
         #residuals = flux - (fit_c)
@@ -480,7 +480,7 @@ def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_resu
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
-        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox', maxfev=5000)
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox', maxfev=999999999)
         amplitude, phase, frequency, offset = params
         fit_c = sine_model(time, *params)
         
@@ -926,23 +926,29 @@ def load_tic_ids_from_csv(csv_file_path):
 
 def seriesofstarsTest(listofstars):
     results = []
-    for star in listofstars:
-        print(f"KIC {star}")
-        function, lc = getCompositeSine2_second_test(f"KIC {star}")
-        if (function[0] == -10):
-            continue
-        flux = lc.flux.value
-        print(flux)
-        print(function)
-        time = lc.time.value
-        min_length = min(len(flux), len(function))
-        flux = flux[:min_length]
-        time = time[:min_length]
-        function = function[:min_length]
-        residuals = flux - function
-        mse = np.sum((residuals)**2)/len(flux)
-        print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
-        results.append({'KIC': star, 'MSE': mse})
+    try:
+        for star in listofstars:
+            print(f"KIC {star}")
+            function, lc = getCompositeSine2_second_test(f"KIC {star}")
+            if (function[0] == -10):
+                continue
+            flux = lc.flux.value
+            print(flux)
+            print(function)
+            time = lc.time.value
+            min_length = min(len(flux), len(function))
+            flux = flux[:min_length]
+            time = time[:min_length]
+            function = function[:min_length]
+            residuals = flux - function
+            mse = np.sum((residuals)**2)/len(flux)
+            print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
+            results.append({'KIC': star, 'MSE': mse})
+    except Exception as e: 
+        df = pd.DataFrame(results)
+        df.to_csv('KeplerStarsOutput.csv', index=False)
+        print("\nResults saved to KeplerStarsOutput")
+        return results
     df = pd.DataFrame(results)
     df.to_csv('KeplerStarsOutput.csv', index=False)
     print("\nResults saved to KeplerStarsOutput")
