@@ -743,11 +743,12 @@ def getCompositeSine2_second_test(a):
             sine_print_terms.append(f"{amplitude:.4f} * sin(2π * {frequency:.4f} * t + {phase:.4f}) + {offset:.4f}")
             count += 1
         #addedTogether  = addedTogether/total_weight
+        composite_string  = "f(t) = " + " + ".join(sine_print_terms)
         print(f"Composite Sine Function for {a}:")
-        print("f(t) = " + " + ".join(sine_print_terms))
+        print(composite_string)
         print(total_weight)
         print(listofindexs)
-        return newaddedtogether, lc     
+        return newaddedtogether, lc, composite_string    
 
 
 
@@ -929,7 +930,7 @@ def seriesofstarsTest(listofstars):
     try:
         for star in listofstars:
             print(f"KIC {star}")
-            function, lc = getCompositeSine2_second_test(f"KIC {star}")
+            function, lc, composite_strings = getCompositeSine2_second_test(f"KIC {star}")
             if (function[0] == -10):
                 continue
             flux = lc.flux.value
@@ -943,7 +944,7 @@ def seriesofstarsTest(listofstars):
             residuals = flux - function
             mse = np.sum((residuals)**2)/len(flux)
             print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
-            results.append({'KIC': star, 'MSE': mse})
+            results.append({'KIC': star, 'MSE': mse, 'Composite Function': composite_strings})
     except Exception as e: 
         df = pd.DataFrame(results)
         df.to_csv('KeplerStarsOutput.csv', index=False)
@@ -967,7 +968,7 @@ a = ['KIC 12602250', 'KIC 9700322','KIC 4048494', 'KIC 6951642', 'KIC 8623953', 
 b = ['KIC 3429637', 'KIC 10451090', 'KIC 2987660']
 c = ['KIC 12602250' , 'KIC 9700322' , 'KIC 8197761' , 'KIC 8623953' ,  'KIC 6382916' ,'KIC 3429637']
 d = ['2987660' , '10451090' , '8197761' , '8623953' ,'3429637']
-e = ['8623953' ,'3429637']
+e = ['2987660' ,'3429637']
 
 #KIC 8197761!!!!!!!!' 'V593 Lyr',
 #getChiSquaredReduced('BO Lyn')
@@ -983,6 +984,7 @@ e = ['8623953' ,'3429637']
    # g.plot()
     #pt.show()
 seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
+#seriesofstarsTest(e)
 #plotsidebysideactual("TIC 398336271")
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
