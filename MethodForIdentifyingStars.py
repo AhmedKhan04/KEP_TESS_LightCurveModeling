@@ -655,7 +655,7 @@ def getCompositeSine2(a):
 def getCompositeSine2_second_test(a):
         powerOfPeaks, _ = identifyPeaksPowerComp(a)
         if(powerOfPeaks == -1):
-            return -10, 0
+            return [-10], 0
         print(len(powerOfPeaks))
         powerOfPeaks = powerOfPeaks.value
         frequencyfitted2, search_result2, powers2 = identifyPeaks(a)
@@ -913,23 +913,24 @@ def load_tic_ids_from_csv(csv_file_path):
     try:
         df = pd.read_csv(csv_file_path)
         
-        if 'TIC_ID' not in df.columns:
-            raise ValueError("CSV does not contain a 'TIC_ID' column.")
+        #if 'TIC_ID' not in df.columns:
+        #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
         
-        tic_list = df['TIC_ID'].dropna().astype(int).tolist()
+        tic_list = df['KIC_ID'].dropna().astype(str).tolist()
         return tic_list
     
     except Exception as e:
         print(f"Error loading TIC IDs: {e}")
         return []
 
-print(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 
 def seriesofstarsTest(listofstars):
+    results = []
     for star in listofstars:
-        function, lc = getCompositeSine2_second_test(f"TIC {star}")
-        if(function == -10):
-            continue 
+        print(f"KIC {star}")
+        function, lc = getCompositeSine2_second_test(f"KIC {star}")
+        if (function[0] == -10):
+            continue
         flux = lc.flux.value
         print(flux)
         print(function)
@@ -939,12 +940,18 @@ def seriesofstarsTest(listofstars):
         time = time[:min_length]
         function = function[:min_length]
         residuals = flux - function
+        mse = np.sum((residuals)**2)/len(flux)
         print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
+        results.append({'KIC': star, 'MSE': mse})
+    df = pd.DataFrame(results)
+    df.to_csv('KeplerStarsOutput.csv', index=False)
+    print("\nResults saved to KeplerStarsOutput")
 
 
 #print(percenterror(-216, -258 ))
 
 #getPeriodogramData('')
+#print(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 
 #fig, a = pt.subplots(1)
 #getLightCurveData("KIC 3733346")
@@ -953,15 +960,22 @@ def seriesofstarsTest(listofstars):
 a = ['KIC 12602250', 'KIC 9700322','KIC 4048494', 'KIC 6951642', 'KIC 8623953', 'KIC 8197761']
 b = ['KIC 3429637', 'KIC 10451090', 'KIC 2987660']
 c = ['KIC 12602250' , 'KIC 9700322' , 'KIC 8197761' , 'KIC 8623953' ,  'KIC 6382916' ,'KIC 3429637']
-d = ['KIC 2987660' , 'KIC 10451090' , 'KIC 8197761' , 'KIC 8623953' ,'KIC 3429637']
+d = ['2987660' , '10451090' , '8197761' , '8623953' ,'3429637']
+e = ['8623953' ,'3429637']
 
 #KIC 8197761!!!!!!!!' 'V593 Lyr',
 #getChiSquaredReduced('BO Lyn')
 #print(getChiSquared('KIC 8197761'))
 #plotsidebyside2('KIC 4733344') 
 #12602250
-#g, h = compGetPeriodogramData('TIC 467355168') ###
+#g, h = compGetPeriodogramData('KIC 2168333') ###
 #g.plot()
+
+#for i in load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"): 
+ #   print(f"KIC {i}")
+  #  g,h = compGetPeriodogramData(f"KIC {i}")
+   # g.plot()
+    #pt.show()
 seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 #plotsidebysideactual("TIC 398336271")
 #guessLegacy('KIC 4048494',0) 

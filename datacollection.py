@@ -25,13 +25,13 @@ vizier.ROW_LIMIT = 1000
 #hip_DCEP_result = vizier.query_constraints(catalog = hip_catalog, VarType = "DCEP")
 #hip_DCEP_table = hip_result[0] if hip_DCEP_result else Table()
 
-Tess_result = vizier.query_constraints(catalog = "J/A+A/686/A174/tablea1", Vmag = ">12")
+Tess_result = vizier.query_constraints(catalog = "J/AJ/142/160/table1")
 Tess_table = Tess_result[0] if Tess_result else Table()
 print("\n")
 print(Tess_table.colnames)
-if 'TIC' in Tess_table.colnames:
-    tic_ids = Tess_table['TIC']
-    df = pd.DataFrame({'TIC_ID': tic_ids})
+if 'KIC' in Tess_table.colnames:
+    tic_ids = Tess_table['KIC']
+    df = pd.DataFrame({'KIC_ID': tic_ids})
     df.to_csv('tic_ids.csv', index=False)
     print("TIC IDs saved to 'tic_ids.csv'")
     
