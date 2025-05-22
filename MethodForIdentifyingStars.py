@@ -917,7 +917,7 @@ def load_tic_ids_from_csv(csv_file_path):
         #if 'TIC_ID' not in df.columns:
         #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
         
-        tic_list = df['TIC_ID'].dropna().astype(str).tolist()
+        tic_list = df['KIC_ID'].dropna().astype(str).tolist()
         return tic_list
     
     except Exception as e:
@@ -978,12 +978,11 @@ e = ['2987660' ,'3429637']
 #g, h = compGetPeriodogramData('KIC 2168333') ###
 #g.plot()
 
-for i in load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\ResearchPython\TIC stars 7mag.csv"): 
-    print(f"TIC {i}")
-    g,h = compGetPeriodogramData(f"TIC {i}")
-    g.plot()
-    pt.show()
-#seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
+#for i in load_tic_ids_from_csv(r"tic_ids.csv"): 
+ #   print(f"KIC {i}")
+  #
+  # pt.show()
+seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 #seriesofstarsTest(e)
 #plotsidebysideactual('TIC 287131452')
 #guessLegacy('KIC 4048494',0) 
