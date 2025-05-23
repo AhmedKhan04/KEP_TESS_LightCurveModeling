@@ -987,14 +987,14 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #seriesofstarsTest(somestars)
 #results = []
 #print(len(somestars))
-#for i in somestars: 
-#    print(i)
-#    g, h = compGetPeriodogramData(f'KIC {i}') 
-#    g.plot()
-#    pt.plot()
+#for i in load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"): 
+ #   print(i)
+  #  g, h = compGetPeriodogramData(f'KIC {i}') 
+   # g.plot()
+    #pt.show()
 #print(results)
 
-seriesofstarsTest(somestars)
+seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 #plotsidebysideactual('TIC 287131452')
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
