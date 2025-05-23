@@ -455,7 +455,8 @@ def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_resu
     vi = np.isfinite(time) & np.isfinite(flux)
     time = time[vi]
     flux = flux[vi]
-     
+    if(len(frequencyfitted) == 0):
+        return [0],[0],[0]
 
     while b < len(frequencyfitted):
         offset_guess = np.mean(flux)
@@ -661,6 +662,8 @@ def getCompositeSine2_second_test(a):
         frequencyfitted2, search_result2, powers2 = identifyPeaks(a)
         amplitude_scale = 0.5
         listofsines, lc, _ = guessActual_refined_second_iteration(a, amplitude_scale, frequencyfitted2, search_result2, powers2)
+        if(listofsines == [0]):
+            return [-10],[0],"0"
         listofindexs =[]
         addedTogether = 0
         time = lc.time.value
@@ -977,13 +980,21 @@ e = ['2987660' ,'3429637']
 #12602250
 #g, h = compGetPeriodogramData('KIC 2168333') ###
 #g.plot()
+somestars = ['9652324', '9653684', '9835555', '9653838', '9835690', '9593010', '9531207', '9654046', '9654088', '9531257', '9469972', '9531319', '9654221', '9593346', '9836103', '9593399', '9775887', '9531736', '9531803', '9593837', '9593892', '9896552', '9593927', '9532154', '9715991', '9532219', '9896704', '9896727', '9594189', '9655316', '9837085', '9471324', '9716440', '9897434', '9716778', '9594890', '9656027', '9897710', '9777444', '9717148', '9838223', '9717468', '9717684', '9717781', '9595900', '9717970', '9596313', '9778648', '9839247', '9473636', '9473646', '9779140', '9718903', '9899540', '9473963', '9839899', '9779523', '9719477']
+somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "9715991", "9532219", "9594189","9655316", "9716440", "9594890", "9897710", "9777444","9717148", "9717468", "9595900", "9717970", "9596313", "9779523"]
 
-#for i in load_tic_ids_from_csv(r"tic_ids.csv"): 
- #   print(f"KIC {i}")
-  #
-  # pt.show()
-seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
-#seriesofstarsTest(e)
+#"9717781" TESST SEPERATE
+#seriesofstarsTest(somestars)
+#results = []
+#print(len(somestars))
+#for i in somestars: 
+#    print(i)
+#    g, h = compGetPeriodogramData(f'KIC {i}') 
+#    g.plot()
+#    pt.plot()
+#print(results)
+
+seriesofstarsTest(somestars)
 #plotsidebysideactual('TIC 287131452')
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))

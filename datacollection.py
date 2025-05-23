@@ -25,7 +25,7 @@ vizier.ROW_LIMIT = 1000
 #hip_DCEP_result = vizier.query_constraints(catalog = hip_catalog, VarType = "DCEP")
 #hip_DCEP_table = hip_result[0] if hip_DCEP_result else Table()
 
-Tess_result = vizier.query_constraints(catalog = "J/AJ/142/160/table1")
+Tess_result = vizier.query_constraints(catalog = "J/AJ/142/2/table3", Note = "Delta Scuti")
 Tess_table = Tess_result[0] if Tess_result else Table()
 print("\n")
 print(Tess_table.colnames)
