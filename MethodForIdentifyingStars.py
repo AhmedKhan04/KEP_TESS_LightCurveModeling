@@ -850,9 +850,7 @@ def getInfomation(listofStars):
         print(b.target_name)
 
 def identifyPeaksOfLightcurves(nameofStar,startingTime): 
-    Composite_function = getCompositeSine2(nameofStar) #2
-    search_result = lk.search_lightcurve(nameofStar,quarter=(6,7,8))
-    lc = search_result.download_all().stitch()
+    Composite_function, lc, _ = getCompositeSine2_second_test(nameofStar) #2
     time = lc.time.value
     print(time)
     flux = lc.flux.value
@@ -887,31 +885,32 @@ def identifyPeaksOfLightcurves(nameofStar,startingTime):
     distances = cdist(peaksofcomposite.reshape(-1, 1), peaksoflightcurve.reshape(-1, 1))
     indices = np.argmin(distances, axis=1)
     matched_lightcurve_peaks = peaksoflightcurve[indices]
-    np.set_printoptions(threshold=np.inf)
-    print(peaksofcomposite)
-    print(matched_lightcurve_peaks)
+    #np.set_printoptions(threshold=np.inf)
+    #print(peaksofcomposite)
+    #print(matched_lightcurve_peaks)
     matched_lightcurve_peaks_snipped = matched_lightcurve_peaks
     peaksofcomposite_snipped = peaksofcomposite
     print(f"Snipped peaks lengths: {len(peaksofcomposite_snipped)}, {len(matched_lightcurve_peaks_snipped)}")
     pt.figure(figsize=(12, 8))
-    pt.scatter(peaksofcomposite_snipped, np.ones(peaksofcomposite_snipped.shape[0]), color='blue', label='composite')
+    #pt.scatter(peaksofcomposite_snipped, np.ones(peaksofcomposite_snipped.shape[0]), color='blue', label='composite')
     residuals = np.abs(peaksofcomposite_snipped - matched_lightcurve_peaks_snipped)
-    print(residuals.shape)
+    #print(residuals.shape)
     #pt.scatter(matched_lightcurve_peaks, np.array(fluxvaluesLight[:min_length]), color='red', label='Light Curve')
-    pt.scatter(matched_lightcurve_peaks_snipped, np.ones(matched_lightcurve_peaks_snipped.shape[0]), color='red', label='Light Curve')
-    pt.plot(matched_lightcurve_peaks_snipped,residuals,"o-", color = "black")
-    print(residuals)
+    #pt.scatter(matched_lightcurve_peaks_snipped, np.ones(matched_lightcurve_peaks_snipped.shape[0]), color='red', label='Light Curve')
+    #pt.plot(matched_lightcurve_peaks_snipped,residuals,"o-", color = "black")
+    #print(residuals)
     print(f" The average residual in days is {np.mean(residuals)}")
     #pt.plot(time, flux[:min_length2], 'o-', color='black', label='Light Curve')
     #pt.plot(time, Composite_function[:min_length2], 'o-', color='green', label='Curve Fit')
     pt.tight_layout()
-    pt.draw()
-    pt.show()
-    print("Original peaksofcomposite:", peaksofcomposite[:10])  # first 10 values
-    print("Snipped peaksofcomposite:", peaksofcomposite_snipped[:10])  # first 10 values after snipping
-    print("Original matched_lightcurve_peaks:", peaksoflightcurve[:10])
-    print("Snipped matched_lightcurve_peaks:", matched_lightcurve_peaks_snipped[:10])
-    print("StartingTime (index to cut):", startingTime)
+    #pt.draw()
+    #pt.show()
+    #print("Original peaksofcomposite:", peaksofcomposite[:10])  # first 10 values
+    #print("Snipped peaksofcomposite:", peaksofcomposite_snipped[:10])  # first 10 values after snipping
+    #print("Original matched_lightcurve_peaks:", peaksoflightcurve[:10])
+    #print("Snipped matched_lightcurve_peaks:", matched_lightcurve_peaks_snipped[:10])
+    #print("StartingTime (index to cut):", startingTime)
+    return np.mean(residuals)
                 
 def load_tic_ids_from_csv(csv_file_path):
     try:
@@ -920,7 +919,7 @@ def load_tic_ids_from_csv(csv_file_path):
         #if 'TIC_ID' not in df.columns:
         #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
         
-        tic_list = df['KIC_ID'].dropna().astype(str).tolist()
+        tic_list = df['KIC'].dropna().astype(str).tolist()
         return tic_list
     
     except Exception as e:
@@ -955,6 +954,22 @@ def seriesofstarsTest(listofstars):
         return results
     df = pd.DataFrame(results)
     df.to_csv('KeplerStarsOutput.csv', index=False)
+    print("\nResults saved to KeplerStarsOutput")
+
+def seriesofstarsTest_time_error(listofstars):
+    results = []
+    try:
+        for star in listofstars:
+            print(f"KIC {star}")
+            time = identifyPeaksOfLightcurves(f"KIC {star}", 100)
+            results.append({'KIC': star, 'Error': time})
+    except RuntimeError as e: 
+        df = pd.DataFrame(results)
+        df.to_csv('KeplerStarsOutput_time_error.csv', index=False)
+        print("\nResults saved to KeplerStarsOutput")
+        return results
+    df = pd.DataFrame(results)
+    df.to_csv('KeplerStarsOutput_time_error.csv', index=False)
     print("\nResults saved to KeplerStarsOutput")
 
 
@@ -994,7 +1009,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
     #pt.show()
 #print(results)
 
-seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
+seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
 #plotsidebysideactual('TIC 287131452')
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
