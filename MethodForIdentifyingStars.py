@@ -991,7 +991,7 @@ e = ['2987660' ,'3429637']
 #KIC 8197761!!!!!!!!' 'V593 Lyr',
 #getChiSquaredReduced('BO Lyn')
 #print(getChiSquared('KIC 8197761'))
-#plotsidebyside2('KIC 4733344') 
+#('KIC 3429637', 0) 
 #12602250
 #g, h = compGetPeriodogramData('KIC 2168333') ###
 #g.plot()
@@ -1009,8 +1009,8 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
     #pt.show()
 #print(results)
 
-seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
-#plotsidebysideactual('TIC 287131452')
+#seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
+plotsidebysideactual('KIC 2304168')
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
 #identifyPeaks('KIC 12602250')
