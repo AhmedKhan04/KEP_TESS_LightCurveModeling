@@ -1023,4 +1023,12 @@ plotsidebysideactual('KIC 2304168')
 #seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 pt.show()
 
+"""
+KIC 9353572
+MSE: 1.3938312779313455e-06
+f(t) = 0.0003 * sin(2π * 10.8822 * t + 0.2737) + 0.1476 + 0.0010 * sin(2π * 13.3928 * t + 1.1594) + 0.5553 + 0.0001 * sin(2π * 13.8161 * t + -0.0225) + 0.0651 + 0.0004 * sin(2π * 15.7575 * t + -0.8967) + 0.2321
 
+
+
+
+"""
