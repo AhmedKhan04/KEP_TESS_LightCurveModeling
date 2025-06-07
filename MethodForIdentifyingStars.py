@@ -268,14 +268,14 @@ def guessActual(a):
         frequency_guess = frequencyfitted[b].value
         ig = [0.75*amplitude_guess, phase_guess, frequency_guess, offset_guess]
         # Adding bounds: to force some values of amplitude
-        bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+        bounds = ([0.45*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
         #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
         #WORK AND FIX THIS PART
 
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
-        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox')
+        params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox', maxfev = 9999999)
         amplitude, phase, frequency, offset = params
         fit_c = sine_model(time, *params)
         #amplitude, phase, frequency, offset = params
@@ -627,7 +627,7 @@ def getCompositeSine2(a):
         powerOfPeaks, _ = identifyPeaksPowerComp(a)
         print(len(powerOfPeaks))
         powerOfPeaks = powerOfPeaks.value
-        listofsines, lc = guessActual_refined(a)
+        listofsines, lc = guessActual(a)
         addedTogether = 0
         time = lc.time.value
         flux = lc.flux.value
@@ -752,6 +752,38 @@ def getCompositeSine2_second_test(a):
         print(total_weight)
         print(listofindexs)
         return newaddedtogether, lc, composite_string    
+
+def plotsidebysideactual_manual(a):
+    function, lc = getCompositeSine2(a)
+    flux = lc.flux.value
+    print(flux)
+    print(function)
+    time = lc.time.value
+    min_length = min(len(flux), len(function))
+    flux = flux[:min_length]
+    time = time[:min_length]
+    function = function[:min_length]
+    residuals = flux - function
+    print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
+    #a = 0.00219*np.sin(2*np.pi*10.33759*time+-0.21704)+ 0.54456 + 0.00183*np.sin(2*np.pi*12.47142*time+-6.28319) + 0.45546
+    print(residuals)
+    pt.plot(time, residuals, 'o-', color='blue', label='O-C (Observed - Calculated)')
+    pt.plot(time, flux, 'o-', color='red', label='Light Curve')
+    pt.plot(time, function, 'o-', color='green', label='Curve Fit')
+    #pt.plot(time, a, 'o-', color = 'blue')
+    pt.axhline(0, color='red', linestyle='--', linewidth=1, label='Zero Line')
+    pt.title("O-C Diagram " + str(a))
+    pt.xlabel("Time (Days)")
+    pt.ylabel("O-C (Flux Difference)")
+    pt.legend()
+    pt.grid()
+    pt.tight_layout()
+    pt.show()
+    #pt.plot(flux, 'b')
+    #pt.plot(function, 'r')
+    #pt.plot(residuals, 'g')
+    #pt.show()
+
 
 
 
@@ -1010,7 +1042,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #print(results)
 
 #seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
-plotsidebysideactual('KIC 2304168')
+plotsidebysideactual('KIC 3123138')
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
 #identifyPeaks('KIC 12602250')
@@ -1024,11 +1056,23 @@ plotsidebysideactual('KIC 2304168')
 pt.show()
 
 """
+KIC 2297728
+Could not get data, lightcurve has corrupted files???? No idea. Only experienced this once prior. 
+
 KIC 9353572
 MSE: 1.3938312779313455e-06
+RMSE: 0.515125254394959
 f(t) = 0.0003 * sin(2π * 10.8822 * t + 0.2737) + 0.1476 + 0.0010 * sin(2π * 13.3928 * t + 1.1594) + 0.5553 + 0.0001 * sin(2π * 13.8161 * t + -0.0225) + 0.0651 + 0.0004 * sin(2π * 15.7575 * t + -0.8967) + 0.2321
 
+KIC 2304168
+MSE: 0.00013053541098047208
+RMSE: 0.7005639971786805
+f(t) = 0.0080 * sin(2π * 8.1184 * t + 1.6094) + 0.5430 + 0.0032 * sin(2π * 8.5925 * t + 0.1283) + 0.2148 + 0.0026 * sin(2π * 10.4877 * t + 2.6149) + 0.1761 + 0.0010 * sin(2π * 11.0852 * t + -0.3035) + 0.0665
 
+KIC 3123138
+MSE: 1.5358083863541634e-06
+RMSE: 0.7671053729865529
+f(t) = 0.0002 * sin(2π * 1.0098 * t + -0.9006) + 0.1042 + 0.0001 * sin(2π * 2.0404 * t + -2.5190) + 0.1031 + 0.0001 * sin(2π * 3.0706 * t + -3.3178) + 0.0654 + 0.0002 * sin(2π * 9.7877 * t + 1.3097) + 0.1154 + 0.0009 * sin(2π * 15.1035 * t + -1.3249) + 0.6119
 
 
 """
