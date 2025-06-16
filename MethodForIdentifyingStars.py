@@ -16,11 +16,15 @@ from scipy.signal import find_peaks
 from scipy.interpolate import interp1d
 from scipy.spatial.distance import cdist
 import pandas as pd
+from scipy.optimize import minimize
+from scipy.interpolate import interp1d
 
 def getLightCurveData(nameOfStar):
     search_result = lk.search_lightcurve(nameOfStar, quarter=(6,7,8))
     lc = search_result.download_all()
-    #Modeling(l    lc.plot()
+    time = lc.time.value
+    flux = lc.time.value
+    pt.plot(time, flux)
     
 def getPeriodogramData(nameOfStar): 
     x = lk.search_targetpixelfile(nameOfStar).download()
@@ -268,7 +272,7 @@ def guessActual(a):
         frequency_guess = frequencyfitted[b].value
         ig = [0.75*amplitude_guess, phase_guess, frequency_guess, offset_guess]
         # Adding bounds: to force some values of amplitude
-        bounds = ([0.45*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
+        bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
         #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
         #WORK AND FIX THIS PART
 
@@ -882,7 +886,7 @@ def getInfomation(listofStars):
         print(b.target_name)
 
 def identifyPeaksOfLightcurves(nameofStar,startingTime): 
-    Composite_function, lc, _ = getCompositeSine2_second_test(nameofStar) #2
+    Composite_function, lc, _ = getCompositeSine2_second_test(nameofStar) #2 # actual 
     time = lc.time.value
     print(time)
     flux = lc.flux.value
@@ -943,6 +947,466 @@ def identifyPeaksOfLightcurves(nameofStar,startingTime):
     #print("Snipped matched_lightcurve_peaks:", matched_lightcurve_peaks_snipped[:10])
     #print("StartingTime (index to cut):", startingTime)
     return np.mean(residuals)
+
+
+def identifyPeaksOfLightcurves_manual(nameofStar,startingTime): 
+    Composite_function, lc = getCompositeSine2(nameofStar) #2 # actual 
+    time = lc.time.value
+    print(time)
+    flux = lc.flux.value
+    time, flux = align_arrays(time,flux)
+    gradientOfComposite = np.gradient(Composite_function,time)
+    gradientOfLightcurve = np.gradient(flux, time)
+    print(gradientOfComposite)
+    print(gradientOfLightcurve)
+    def gettimestamps(gradientarray,time):
+        a = []
+        b = []
+        x = 0 
+        lasttimestamp = 0 
+        while x < len(gradientarray):
+            if (np.absolute(gradientarray[x]) < 0.1): 
+                if (lasttimestamp != time[x-1]):
+                    a.append(time[x])
+                    b.append(flux[x])
+                    lasttimestamp = time[x]
+                    x +=1
+            x += 1
+        return a,b
+    peaksofcomposite, fluxvalues = gettimestamps(gradientOfComposite, time)
+    peaksoflightcurve,fluxvaluesLight = gettimestamps(gradientOfLightcurve, time)
+    residuals_flux = flux - Composite_function
+    print(f"MSE: {np.sum((residuals_flux)**2)/len(flux)}")
+    min_length = min(len(peaksofcomposite), len(peaksoflightcurve))
+    peaksofcomposite = np.array(peaksofcomposite[:min_length])
+    peaksoflightcurve = np.array(peaksoflightcurve[:min_length])
+    print(peaksofcomposite)
+    #peaksofcomposite = np.array(peaksofcomposite)[composite_time_mask]
+    #peaksoflightcurve = np.array(peaksoflightcurve)[composite_time_mask]
+    #pt.scatter(peaksofcomposite, np.array(fluxvalues[:min_length]), color='blue', label='composite')
+    distances = cdist(peaksofcomposite.reshape(-1, 1), peaksoflightcurve.reshape(-1, 1))
+    indices = np.argmin(distances, axis=1)
+    matched_lightcurve_peaks = peaksoflightcurve[indices]
+    #np.set_printoptions(threshold=np.inf)
+    #print(peaksofcomposite)
+    #print(matched_lightcurve_peaks)
+    matched_lightcurve_peaks_snipped = matched_lightcurve_peaks
+    peaksofcomposite_snipped = peaksofcomposite
+    print(f"Snipped peaks lengths: {len(peaksofcomposite_snipped)}, {len(matched_lightcurve_peaks_snipped)}")
+    pt.figure(figsize=(12, 8))
+    pt.scatter(peaksofcomposite_snipped, np.ones(peaksofcomposite_snipped.shape[0]), color='blue', label='Composite function')
+    residuals = np.abs(peaksofcomposite_snipped - matched_lightcurve_peaks_snipped)
+    #print(residuals.shape)
+    #pt.scatter(matched_lightcurve_peaks, np.array(fluxvaluesLight[:min_length]), color='red', label='Light Curve')
+    pt.scatter(matched_lightcurve_peaks_snipped, np.ones(matched_lightcurve_peaks_snipped.shape[0]), color='red', label='Light curve')
+    pt.plot(matched_lightcurve_peaks_snipped,residuals,"o-", color = "black", label = "ϵ value")
+    #print(residuals)
+    print(f" The average residual in days is {np.mean(residuals)}")
+    #pt.plot(time, flux[:min_length2], 'o-', color='black', label='Light Curve')
+    #pt.plot(time, Composite_function[:min_length2], 'o-', color='green', label='Curve Fit')
+    pt.tight_layout()
+    pt.legend()
+    pt.title("Peak and Trough Time Difference for KIC 3123138")
+    pt.xlabel("Time (BKJD days)")
+    pt.ylabel("ϵ value (BKJD days)")
+    #pt.draw()
+    pt.show()
+    #print("Original peaksofcomposite:", peaksofcomposite[:10])  # first 10 values
+    #print("Snipped peaksofcomposite:", peaksofcomposite_snipped[:10])  # first 10 values after snipping
+    #print("Original matched_lightcurve_peaks:", peaksoflightcurve[:10])
+    #print("Snipped matched_lightcurve_peaks:", matched_lightcurve_peaks_snipped[:10])
+    #print("StartingTime (index to cut):", startingTime)
+    return np.mean(residuals)
+
+
+def get_epsilon_value(star_name, sine_string):
+
+    search_result = lk.search_lightcurve(star_name, quarter=(6,7,8))
+    lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
+    t = lc.time.value
+    #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
+    #sine_string = "0.0020 sin(2π(10.3376)t + -0.2050) + 1 + 0.0017 sin(2π(12.4714)t + -6.2832)"
+    #0.0020  * np.sin(2 * np.pi * (10.3376) * t  + -0.2050) + 1 + 0.0017  * np.sin(2 * np.pi * (12.4714) * t  + -6.2832)
+    sine_string = sine_string.replace('sin', 'np.sin')
+    sine_string = sine_string.replace('2π', '2 * np.pi ')
+    #sine_string = sine_string.replace('t', ' * t ')
+    sine_string = sine_string.replace("f(t) = ", "")
+    #model_profile = eval(sine_string)
+    OFFSET = 2454833
+    expected_cadence = 1800  # seconds
+
+    # Your model definition
+    def create_model_function(sine_string):
+        """Create a callable function from the sine string"""
+        def model(t, dt, *params):
+            # dt is the time offset parameter we're fitting
+            # params could be used if you want to make amplitudes/frequencies variable
+            shifted_t = t + dt + (OFFSET-2457000)
+            print(sine_string)
+            return eval(sine_string.replace('t', 'shifted_t'))
+        return model
+
+    # Define your model
+    #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
+    profile_func = create_model_function(sine_string)
+
+    mask = (np.isfinite(lc.flux.value.unmasked))
+    all_flux = lc.flux.value[mask]
+    all_time = lc.time.value[mask]
+
+    true_time = []
+    est_time = []
+    t_step = 0.1  # resolution of the Allan variance plot
+    dt = 1.0  # days, duration of measurement for curve fit
+    t_prev = -np.inf
+
+    for t in all_time:
+        if t - t_prev > t_step:
+            t_prev = t
+        else:
+            continue
+
+        # grab a segment of actual light curve data
+        start_bxjd = t_prev
+        mask = (all_time >= start_bxjd) & (all_time <= (start_bxjd + dt))
+        time = all_time[mask]
+        flux = all_flux[mask]
+
+        # check data quality
+        if len(time) == 0:
+            continue
+        if abs(time[-1] - start_bxjd - dt) > expected_cadence/86400:
+            continue
+        if abs(time[0] - start_bxjd) > expected_cadence/86400:
+            continue
+        if np.any(np.diff(time) > expected_cadence/86400):
+            continue
+
+        t_zeroed = time - time[0]
+        
+        # Initial guesses near the start time
+        t0_list = np.arange(-4,4) * 0.1 + time[0] + np.random.normal(0.01, 0.05)
+        t_est_list = []
+        
+        for t0 in t0_list:
+            try:
+                popt, pcov = curve_fit(
+                    profile_func,
+                    xdata=t_zeroed,
+                    ydata=flux,
+                    p0=t0,
+                    xtol=1e-12,
+                    maxfev=1000
+                )
+                t_est_list.append(popt[0])
+            except RuntimeError:
+                continue
+        
+        if len(t_est_list) > 0:
+            t_est = t_est_list[np.argmin(np.abs(t_est_list-time[0]))]
+            true_time.append(time[0])
+            est_time.append(t_est)
+
+    # Rest of your plotting code remains the same...
+    true_time = np.array(true_time)
+    est_time = np.array(est_time)
+
+    # detect gaps and create segments
+    time_diff = np.diff(true_time)
+    mask = time_diff > 3000
+    gap_indices = np.where(mask)[0]
+    segments = np.split(true_time, gap_indices+1)
+
+    # plotting
+    tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5)/100)*100)
+    margin = 0.5  # days
+
+    fig_oc, axs = pt.subplots(1, len(segments), figsize=(8,3), sharey=True, 
+                            gridspec_kw={'wspace': 0, 'hspace': 0},
+                            width_ratios=[seg[-1]-seg[0] + margin*2 for seg in segments])
+
+    if not isinstance(axs, np.ndarray):
+        axs = [axs]
+
+    for ii, ax in enumerate(axs):
+        ax.scatter(true_time-tshift + OFFSET - 2400000.5, true_time-est_time, c='k', s=1)
+        if ii == 0:
+            ax.set_ylabel('O-C (days)', fontsize=11)
+        ax.set_xlim(segments[ii][0]-tshift + OFFSET - 2400000.5 - margin, 
+                    segments[ii][-1]-tshift + OFFSET - 2400000.5 + margin)
+
+    fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
+    pt.show()
+
+    """
+    expected_cadence = 1800 # seconds
+    dt = 10  # days, duration of each segment for fitting
+    t_step = 1  # days, step size for segments
+
+    # Prepare cleaned time and flux arrays
+    mask = np.isfinite(lc.flux.value)
+    all_time = lc.time.value[mask]
+    all_flux = lc.flux.value[mask]
+    print(len(all_time))
+    # Your precomputed model arrays (example)
+    model_time = np.linspace(0, dt, len(model_profile))
+    model_flux = model_profile
+
+    model_interp = interp1d(model_time, model_flux, bounds_error=False, fill_value='extrapolate')
+
+    true_time = []
+    est_time = []
+
+    # Create regularly spaced segment start times
+    t_start = all_time[0]
+    t_end = all_time[-1]
+    t_grid = np.arange(t_start, t_end, t_step)
+
+    for t0 in t_grid:
+        # Select data in [t0, t0+dt]
+        mask = (all_time >= t0) & (all_time <= t0 + dt)
+        time = all_time[mask]
+        flux = all_flux[mask]
+        print(t0)
+
+        # Skip if no data or gaps too large
+        if len(time) == 0:
+            continue
+        if abs(time[-1] - t0 - dt) > expected_cadence / 86400:
+            continue
+        if abs(time[0] - t0) > expected_cadence / 86400:
+            continue
+        if np.any(np.diff(time) > expected_cadence / 86400):
+            continue
+
+        # Zero time for fitting
+        t_zeroed = time - time[0]
+
+        # Initial guesses for dt shift - tweak if needed
+        dt_guesses = np.linspace(-0.5, 0.5, 10)
+
+        t_est_list = []
+        for dt_guess in dt_guesses:
+            try:
+                popt, _ = curve_fit(
+                    lambda x, dt_shift: model_interp(x + dt_shift),
+                    xdata=t_zeroed,
+                    ydata=flux,
+                    p0=[dt_guess],
+                    xtol=1e-12,
+                    maxfev=1000
+                )
+                # Convert estimated dt shift back to absolute time
+                t_est_list.append(time[0] + popt[0])
+            except Exception:
+                pass
+
+        if len(t_est_list) == 0:
+            continue
+
+        # Choose estimate closest to start time of segment
+        t_est_arr = np.array(t_est_list)
+        best_t_est = t_est_arr[np.argmin(np.abs(t_est_arr - time[0]))]
+
+        true_time.append(time[0])
+        est_time.append(best_t_est)
+
+    true_time = np.array(true_time)
+    est_time = np.array(est_time)
+
+    # Find gaps to split into contiguous segments for plotting
+    time_diff = np.diff(true_time)
+    gap_mask = time_diff > 3000
+    gap_indices = np.where(gap_mask)[0]
+    segments = np.split(true_time, gap_indices + 1)
+
+    # Compute t_shift for xlabel
+    tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5) / 100) * 100)
+
+    # Plotting
+    margin = 0.5  # days
+    fig_oc, axs = pt.subplots(
+        1,
+        len(segments),
+        figsize=(8, 3),
+        sharey=True,
+        gridspec_kw={'wspace': 0, 'hspace': 0},
+        width_ratios=[seg[-1] - seg[0] + margin * 2 for seg in segments]
+    )
+
+    if not isinstance(axs, np.ndarray):
+        axs = [axs]
+
+    for ii, ax in enumerate(axs):
+        ax.scatter(
+            true_time - tshift + OFFSET - 2400000.5,
+            true_time - est_time,
+            c='k',
+            s=1
+        )
+        if ii == 0:
+            ax.set_ylabel('O-C (days)', fontsize=11)
+        ax.set_xlim(
+            segments[ii][0] - tshift + OFFSET - 2400000.5 - margin,
+            segments[ii][-1] - tshift + OFFSET - 2400000.5 + margin
+        )
+
+    fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
+    pt.show()
+    """
+
+    """
+    # Interpolate model profile
+    model_phase = np.linspace(0, 1, len(model_profile), endpoint=False)
+    interp_model = interp1d(model_phase, model_profile, kind='linear', bounds_error=False, fill_value='extrapolate')
+
+        # Prep light curve
+    # === SETUP ===
+    OFFSET = 2457000
+    expected_cadence = 60  # seconds
+    expected_cadence_days = expected_cadence / 86400
+    t_step = 1    # days between segments
+    dt = 1.0       # duration of each fit segment
+    margin = 0.5     # for plot x-limits
+
+    # === PREP MODEL ===
+    model_phase = np.linspace(0, 1, len(model_profile), endpoint=False)
+    interp_model = interp1d(model_phase, model_profile, kind='linear', bounds_error=False, fill_value='extrapolate')
+
+    # === PREP LIGHT CURVE ===
+    mask = np.isfinite(lc.flux.value.unmasked)
+    all_flux = lc.flux.value[mask]
+    all_time = lc.time.value[mask]
+
+    # === FIND VALID SEGMENTS ===
+    def find_valid_segments(all_time, all_flux, dt=1.0, t_step=0.1, expected_cadence_days=1800/86400):
+        segments = []
+        i = 0
+        N = len(all_time)
+        while i < N:
+            print(i)
+            t0 = all_time[i]
+            t1 = t0 + dt
+            j = np.searchsorted(all_time, t1)
+
+            time_chunk = all_time[i:j]
+            flux_chunk = all_flux[i:j]
+
+            if len(time_chunk) >= 10:
+                diffs = np.diff(time_chunk)
+                if np.all(diffs < 1.5 * expected_cadence_days):  # allow small gaps
+                    segments.append((time_chunk, flux_chunk))
+
+            i = np.searchsorted(all_time, t0 + t_step)
+
+        return segments
+
+    valid_segments = find_valid_segments(all_time, all_flux, dt, t_step, expected_cadence_days)
+    print("hellow")
+    # === O–C CALCULATION ===
+    period_grid = np.linspace(0.05, 0.2, 30)      # trial periods
+    shift_grid = np.linspace(-0.2, 0.2, 60)       # trial phase shifts
+    shift_grid_2D, period_grid_2D = np.meshgrid(shift_grid, period_grid)
+    shift_flat = shift_grid_2D.ravel()
+    period_flat = period_grid_2D.ravel()
+
+    true_time = []
+    est_time = []
+
+    for time, flux in valid_segments:
+        t0 = time[0]
+        t_zeroed = time - t0
+        N = len(t_zeroed)
+
+        # Broadcast grid search
+        time_matrix = t_zeroed[:, None] + shift_flat[None, :]
+        phase_matrix = (time_matrix / period_flat[None, :]) % 1
+        model_matrix = interp_model(phase_matrix)
+        residuals = flux[:, None] - model_matrix
+        mse = np.mean(residuals ** 2, axis=0)
+        best_idx = np.argmin(mse)
+
+        best_shift = shift_flat[best_idx]
+        best_period = period_flat[best_idx]
+        print(time)
+        true_time.append(t0)
+        est_time.append(t0 + best_shift)
+
+    true_time = np.array(true_time)
+    est_time = np.array(est_time)
+
+    # === SEGMENT SPLITTING FOR PLOTTING ===
+    time_diff = np.diff(true_time)
+    gap_indices = np.where(time_diff > 3000 / 86400)[0]
+    segments = np.split(true_time, gap_indices + 1)
+
+    tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5) / 100) * 100)
+
+    # === PLOT O–C DIAGRAM ===
+    fig_oc, axs = pt.subplots(1, len(segments), figsize=(8, 3), sharey=True,
+                            gridspec_kw={'wspace': 0, 'hspace': 0},
+                            width_ratios=[seg[-1] - seg[0] + margin * 2 for seg in segments])
+
+    if not isinstance(axs, np.ndarray):
+        axs = [axs]
+
+    for ii, ax in enumerate(axs):
+        seg_mask = (true_time >= segments[ii][0]) & (true_time <= segments[ii][-1])
+        oc_vals = true_time[seg_mask] - est_time[seg_mask]
+        ax.scatter(true_time[seg_mask] - tshift + OFFSET - 2400000.5, oc_vals, c='k', s=1)
+        if ii == 0:
+            ax.set_ylabel('O-C (days)', fontsize=11)
+        ax.set_xlim(segments[ii][0] - tshift + OFFSET - 2400000.5 - margin,
+                    segments[ii][-1] - tshift + OFFSET - 2400000.5 + margin)
+
+    fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
+    pt.show()
+
+
+    """
+    return tshift
+
+
+def get_csv_epsilon_value(csv_file_path): 
+
+    try:
+        df = pd.read_csv(csv_file_path)
+        
+        #if 'TIC_ID' not in df.columns:
+        #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
+        
+        KIC_list = df['KIC'].dropna().astype(str).tolist()
+        FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
+        i = 0 
+        while( i < len(KIC_list)):
+            get_epsilon_value(KIC_list[i], FUNCTION_list[i])
+            i += 1
+        
+    except Exception as e:
+        print(f"Error loading TIC IDs: {e}")
+        return []
+
+
+def find_valid_segments(all_time, all_flux, dt=1.0, t_step=0.1, expected_cadence_days=1800/86400):
+    segments = []
+    i = 0
+    N = len(all_time)
+    while i < N:
+        t0 = all_time[i]
+        t1 = t0 + dt
+        j = np.searchsorted(all_time, t1)
+
+        time_chunk = all_time[i:j]
+        flux_chunk = all_flux[i:j]
+
+        if len(time_chunk) >= 10:
+            diffs = np.diff(time_chunk)
+            if np.all(diffs < 1.5 * expected_cadence_days):  # allow minor jitter
+                segments.append((time_chunk, flux_chunk))
+
+        i = np.searchsorted(all_time, t0 + t_step)
+
+    return segments
                 
 def load_tic_ids_from_csv(csv_file_path):
     try:
@@ -1042,12 +1506,15 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #print(results)
 
 #seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
-plotsidebysideactual('KIC 3123138')
+#identifyPeaksOfLightcurves_manual('KIC 3123138', 0)
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
 #identifyPeaks('KIC 12602250')
 #print(guess("X Caeli", 1))
 #3429637
+get_csv_epsilon_value(r"ResearchPython\KeplerStarsOutput_combined.csv")
+#lc = lk.search_lightcurve("KIC 3429637").download_all().stitch().remove_outliers(sigma = 5.0)
+#pt.plot(lc.time.value, lc.flux.value)
 #getPeriodogramData('KIC 3429637')s
 #pt.title("Light Curve for KIC 3429637")
 #pt.xlabel("Time (Days)")
@@ -1063,16 +1530,19 @@ KIC 9353572
 MSE: 1.3938312779313455e-06
 RMSE: 0.515125254394959
 f(t) = 0.0003 * sin(2π * 10.8822 * t + 0.2737) + 0.1476 + 0.0010 * sin(2π * 13.3928 * t + 1.1594) + 0.5553 + 0.0001 * sin(2π * 13.8161 * t + -0.0225) + 0.0651 + 0.0004 * sin(2π * 15.7575 * t + -0.8967) + 0.2321
+Epsilon: 0.006914152545426193
+
 
 KIC 2304168
 MSE: 0.00013053541098047208
 RMSE: 0.7005639971786805
 f(t) = 0.0080 * sin(2π * 8.1184 * t + 1.6094) + 0.5430 + 0.0032 * sin(2π * 8.5925 * t + 0.1283) + 0.2148 + 0.0026 * sin(2π * 10.4877 * t + 2.6149) + 0.1761 + 0.0010 * sin(2π * 11.0852 * t + -0.3035) + 0.0665
+Epsilon: 0.06964311105059576
 
 KIC 3123138
 MSE: 1.5358083863541634e-06
 RMSE: 0.7671053729865529
 f(t) = 0.0002 * sin(2π * 1.0098 * t + -0.9006) + 0.1042 + 0.0001 * sin(2π * 2.0404 * t + -2.5190) + 0.1031 + 0.0001 * sin(2π * 3.0706 * t + -3.3178) + 0.0654 + 0.0002 * sin(2π * 9.7877 * t + 1.3097) + 0.1154 + 0.0009 * sin(2π * 15.1035 * t + -1.3249) + 0.6119
-
+Epsilon: 0.010544980738373127 --> Inspecting chart, it seems like it fluctuates between 0 error to a constant error depending on the region within the light curve
 
 """
