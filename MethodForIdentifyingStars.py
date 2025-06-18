@@ -18,6 +18,7 @@ from scipy.spatial.distance import cdist
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.interpolate import interp1d
+import scienceplots
 
 def getLightCurveData(nameOfStar):
     search_result = lk.search_lightcurve(nameOfStar, quarter=(6,7,8))
@@ -56,7 +57,7 @@ def identifyPeaks(nameOfStar, lowerscalar = 0.1):
     pg, lightc = compGetPeriodogramData(nameOfStar)
     max_power = np.max(pg.power.value)
     peaks, _ = find_peaks(pg.power, height=[max_power * lowerscalar, max_power * 1.1])
-    pt.figure(figsize=(10, 6))
+    #pt.figure(figsize=(10, 6))
     #pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
     #for i in x:
@@ -205,8 +206,8 @@ def guessIterative(a,bound):
     frequencyfitted = identifyPeaks(a)
     search_result = lk.search_lightcurve(a, quarter=(6,7,8))
     lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
-    #lc.plot()
-    #pt.show()
+    lc.plot()
+    pt.show()
     b = 0 
     c = []
     while b < len(frequencyfitted):
@@ -805,14 +806,14 @@ def plotsidebysideactual(a):
     print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
     #a = 0.00219*np.sin(2*np.pi*10.33759*time+-0.21704)+ 0.54456 + 0.00183*np.sin(2*np.pi*12.47142*time+-6.28319) + 0.45546
     print(residuals)
-    pt.plot(time, residuals, 'o-', color='blue', label='O-C (Observed - Calculated)')
+    pt.plot(time, residuals, 'o-', color='blue', label=' Residuals (Observed - Calculated)')
     pt.plot(time, flux, 'o-', color='red', label='Light Curve')
     pt.plot(time, function, 'o-', color='green', label='Curve Fit')
     #pt.plot(time, a, 'o-', color = 'blue')
     pt.axhline(0, color='red', linestyle='--', linewidth=1, label='Zero Line')
-    pt.title("O-C Diagram " + str(a))
-    pt.xlabel("Time (Days)")
-    pt.ylabel("O-C (Flux Difference)")
+    pt.title("Diagram For " + str(a))
+    pt.xlabel("Time -2454833 [BKJD Days]")
+    pt.ylabel("Normalized Flux")
     pt.legend()
     pt.grid()
     pt.tight_layout()
@@ -1478,6 +1479,11 @@ def seriesofstarsTest_time_error(listofstars):
 #getLightCurveData("KIC 3733346")
 #identifyPeaks('X Caeli')
 #identifyPeaks('X Caeli')
+
+#pt.rc('legend', labelsize= 12)
+
+pt.style.use(['science', 'no-latex'])
+pt.rcParams.update({'figure.dpi': '300'})
 a = ['KIC 12602250', 'KIC 9700322','KIC 4048494', 'KIC 6951642', 'KIC 8623953', 'KIC 8197761']
 b = ['KIC 3429637', 'KIC 10451090', 'KIC 2987660']
 c = ['KIC 12602250' , 'KIC 9700322' , 'KIC 8197761' , 'KIC 8623953' ,  'KIC 6382916' ,'KIC 3429637']
@@ -1504,21 +1510,37 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
    # g.plot()
     #pt.show()
 #print(results)
+#plotsidebysideactual("KIC 8197761")
 
 #seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
 #identifyPeaksOfLightcurves_manual('KIC 3123138', 0)
 #guessLegacy('KIC 4048494',0) 
 #print(getMeanSquaredResidual('KIC 7548479'))
-#identifyPeaks('KIC 12602250')
+#guessIterative('KIC 3429637',0)
 #print(guess("X Caeli", 1))
 #3429637
-get_csv_epsilon_value(r"ResearchPython\KeplerStarsOutput_combined.csv")
-#lc = lk.search_lightcurve("KIC 3429637").download_all().stitch().remove_outliers(sigma = 5.0)
-#pt.plot(lc.time.value, lc.flux.value)
-#getPeriodogramData('KIC 3429637')s
-#pt.title("Light Curve for KIC 3429637")
-#pt.xlabel("Time (Days)")
-#pt.ylabel("Flux")
+#get_csv_epsilon_value(r"ResearchPython\KeplerStarsOutput_combined.csv")
+
+#print(pt.rcParams.keys())
+  # Set y-tick label font size
+
+
+lc = lk.search_lightcurve("KIC 3429637", quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
+#pt.figure(figsize=(10, 6))
+t = lc.time.value
+pul_1 = 0.0023* np.sin(2*np.pi*(10.3376)*t + -0.0684) + 1.000
+pul_2 = 0.0019 * np.sin(2*np.pi*(12.4714)*t + -6.2832) + 1.000
+pul_3 = 0.0005 * np.sin(2*np.pi*(10.9363)*t - 6.2832) + 1.0000
+
+pt.plot(lc.time.value, pul_1, label = "Pulsation Mode 1")
+pt.plot(lc.time.value, pul_2, label = "Pulsation Mode 2")
+pt.plot(lc.time.value, pul_3, label = "Pulsation Mode 3")
+pt.title("Pulsation Modes for KIC 3429637")
+pt.xlabel("Time -2454833 [BKJD Days]")
+pt.ylabel("Normalized Flux")
+pt.legend()
+#getPeriodogramData('KIC 3429637')
+#identifyPeaks('KIC 3429637')
 #seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
 pt.show()
 
