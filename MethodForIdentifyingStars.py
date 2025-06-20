@@ -1525,16 +1525,17 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
   # Set y-tick label font size
 
 
-lc = lk.search_lightcurve("KIC 3429637", quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
+lc = lk.search_lightcurve("TIC 121124576").download_all().stitch().remove_outliers(sigma = 5.0)
 #pt.figure(figsize=(10, 6))
 t = lc.time.value
-pul_1 = 0.0023* np.sin(2*np.pi*(10.3376)*t + -0.0684) + 1.000
-pul_2 = 0.0019 * np.sin(2*np.pi*(12.4714)*t + -6.2832) + 1.000
-pul_3 = 0.0005 * np.sin(2*np.pi*(10.9363)*t - 6.2832) + 1.0000
-
-pt.plot(lc.time.value, pul_1, label = "Pulsation Mode 1")
-pt.plot(lc.time.value, pul_2, label = "Pulsation Mode 2")
-pt.plot(lc.time.value, pul_3, label = "Pulsation Mode 3")
+pul_1 = 0.0023* np.sin(2*np.pi*(10.3376)*t + -0.0684) 
+pul_2 = 0.0019 * np.sin(2*np.pi*(12.4714)*t + -6.2832)
+pul_3 = 0.0005 * np.sin(2*np.pi*(10.9363)*t - 6.2832) 
+pul_4 = pul_1 + pul_2 + pul_3 
+pt.plot(lc.time.value, pul_4/np.max(pul_4), label = "Pulsation Mode 1")
+pt.plot(lc.time.value, lc.flux.value/np.max(lc.flux.value), label = "Light Curve")
+#pt.plot(lc.time.value, pul_2, label = "Pulsation Mode 2")
+#pt.plot(lc.time.value, pul_3, label = "Pulsation Mode 3")
 pt.title("Pulsation Modes for KIC 3429637")
 pt.xlabel("Time -2454833 [BKJD Days]")
 pt.ylabel("Normalized Flux")
