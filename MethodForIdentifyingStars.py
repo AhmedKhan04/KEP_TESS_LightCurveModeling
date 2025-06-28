@@ -1022,7 +1022,7 @@ def identifyPeaksOfLightcurves_manual(nameofStar,startingTime):
 
 def get_epsilon_value(star_name, sine_string):
 
-    search_result = lk.search_lightcurve(star_name, quarter=(6,7,8))
+    search_result = lk.search_lightcurve(f"KIC {star_name}")
     lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
     t = lc.time.value
     #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
@@ -1121,7 +1121,7 @@ def get_epsilon_value(star_name, sine_string):
     # plotting
     tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5)/100)*100)
     margin = 0.5  # days
-
+    """""
     fig_oc, axs = pt.subplots(1, len(segments), figsize=(8,3), sharey=True, 
                             gridspec_kw={'wspace': 0, 'hspace': 0},
                             width_ratios=[seg[-1]-seg[0] + margin*2 for seg in segments])
@@ -1130,13 +1130,35 @@ def get_epsilon_value(star_name, sine_string):
         axs = [axs]
 
     for ii, ax in enumerate(axs):
-        ax.scatter(true_time-tshift + OFFSET - 2400000.5, true_time-est_time, c='k', s=1)
+        ax.scatter(true_time-tshift + OFFSET - 2400000.5, true_time-est_time, c='k', s=0.5, label = "Phase Shift (BKJD Days)")
         if ii == 0:
-            ax.set_ylabel('O-C (days)', fontsize=11)
+            ax.set_ylabel('Epsilon (BKJD days)')
+          
+            pt.title(f"Epsilon Values for KIC {star_name}")
         ax.set_xlim(segments[ii][0]-tshift + OFFSET - 2400000.5 - margin, 
                     segments[ii][-1]-tshift + OFFSET - 2400000.5 + margin)
+    """
+    positive_data = np.abs(true_time-est_time)
+    m, b = np.polyfit(true_time-tshift + OFFSET - 2400000.5, positive_data, 1)
+    x = true_time-tshift + OFFSET - 2400000.5
+    #pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
+    #fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
+    return true_time-est_time
 
-    fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
+
+
+
+# Example usage
+# signal = np.array([...])
+# model = np.array([...])
+# residual, R2 = spectral_goodness_of_fit(signal, model)
+# print(f"Spectral Residual: {residual}")
+# print(f"R²_FFT: {R2}")
+
+
+    #fig_oc.
+    pt.legend()
+
     pt.show()
 
     """
@@ -1369,7 +1391,7 @@ def get_epsilon_value(star_name, sine_string):
 
 
 def get_csv_epsilon_value(csv_file_path): 
-
+    print("Running")
     try:
         df = pd.read_csv(csv_file_path)
         
@@ -1379,11 +1401,27 @@ def get_csv_epsilon_value(csv_file_path):
         KIC_list = df['KIC'].dropna().astype(str).tolist()
         FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
         i = 0 
+        master_list_eps = []
         while( i < len(KIC_list)):
-            get_epsilon_value(KIC_list[i], FUNCTION_list[i])
+            eps = get_epsilon_value(KIC_list[i], FUNCTION_list[i])
+            if(i>0):
+                pt.close('all')
+            
+            half = int(len(eps)/2)
+            eps_1_half = eps[:half]
+            eps_2_half = eps[half:]
+            print(np.average(eps))
+            print(np.average(eps_1_half))
+            print(np.average(eps_2_half))
+            master_list_eps.append({"KIC": KIC_list[i], "average eps": np.average(eps), "1 Half": np.average(eps_1_half), "2 Half": np.average(eps_2_half)})
             i += 1
-        
+        df = pd.DataFrame(master_list_eps)
+        df.to_csv('KeplerStarsOutput_EPS_VALS.csv', index=False)
+        print("\nResults saved to KeplerStarsOutput")
     except Exception as e:
+        df = pd.DataFrame(master_list_eps)
+        df.to_csv('KeplerStarsOutput_EPS_VALS.csv', index=False)
+        print("\nResults saved to KeplerStarsOutput")
         print(f"Error loading TIC IDs: {e}")
         return []
 
@@ -1469,7 +1507,145 @@ def seriesofstarsTest_time_error(listofstars):
     df.to_csv('KeplerStarsOutput_time_error.csv', index=False)
     print("\nResults saved to KeplerStarsOutput")
 
+def CompareTelescopes(nameOfStar, sine_string): 
+    lc = lk.search_lightcurve(f"KIC {nameOfStar}").download_all().stitch().remove_outliers(sigma = 1.0)
+    signal = lc.flux.value[0:15000]
+    t = lc.time.value[0:15000]
+    sine_string = sine_string.replace('sin', 'np.sin')
+    sine_string = sine_string.replace('2π', '2 * np.pi ')
+    #sine_string = sine_string.replace('t', ' * t ')
+    sine_string = sine_string.replace("f(t) = ", "")
+    model = eval(sine_string)
 
+    def normalize_to_minus_one_to_one(arr):
+        min_val = np.min(arr)
+        max_val = np.max(arr)
+        normalized = 2 * (arr - min_val) / (max_val - min_val) -1
+        return normalized
+    model = normalize_to_minus_one_to_one(model)
+    signal = normalize_to_minus_one_to_one(signal)
+    pt.plot(t, model)
+    pt.plot(t,signal)
+    pt.show()
+    def spectral_goodness_of_fit(signal, model):
+        """
+        Computes the spectral residual and normalized R^2_FFT goodness-of-fit
+        between the signal and the model.
+        
+        Parameters:
+        - signal: numpy array, the observed signal
+        - model: numpy array, the modeled signal
+        
+        Returns:
+        - spectral_residual: float
+        - R2_FFT: float
+        """
+        # Compute the Fourier Transforms
+        S_f = np.fft.fft(signal)
+        M_f = np.fft.fft(model)
+        
+        # Compute Spectral Residual
+        spectral_residual = np.sum(np.abs(S_f - M_f)**2)
+        
+        # Compute normalized R^2_FFT
+        S_bar = np.mean(S_f)
+        normalization = np.sum(np.abs(S_f - S_bar)**2)
+        R2_FFT = 1 - (spectral_residual / normalization)
+        
+        return spectral_residual, R2_FFT
+    
+    spec_res, R2 = spectral_goodness_of_fit(signal, model)
+    print(spec_res, R2)
+    return spec_res, R2
+
+
+
+def SpectralResiduals(nameOfStar, sine_string): 
+    lc = lk.search_lightcurve(f"KIC {nameOfStar}").download_all().stitch().remove_outliers(sigma = 5.0)
+    signal = lc.flux.value
+    t = lc.time.value
+    sine_string = sine_string.replace('sin', 'np.sin')
+    sine_string = sine_string.replace('2π', '2 * np.pi ')
+    #sine_string = sine_string.replace('t', ' * t ')
+    sine_string = sine_string.replace("f(t) = ", "")
+    model = eval(sine_string)
+    """
+    def normalize_to_minus_one_to_one(arr):
+        min_val = np.min(arr)
+        max_val = np.max(arr)
+        normalized = 2 * (arr - min_val) / (max_val - min_val) -1
+        return normalized
+    """
+    #model = normalize_to_minus_one_to_one(model)
+    #signal = normalize_to_minus_one_to_one(signal)
+    #pt.plot(t, model)
+    #pt.plot(t,signal)
+    #pt.show()
+    def spectral_goodness_of_fit(signal, model):
+        """
+        Computes the spectral residual and normalized R^2_FFT goodness-of-fit
+        between the signal and the model.
+        
+        Parameters:
+        - signal: numpy array, the observed signal
+        - model: numpy array, the modeled signal
+        
+        Returns:
+        - spectral_residual: float
+        - R2_FFT: float
+        """
+        # Compute the Fourier Transforms
+        S_f = np.fft.fft(signal)
+        M_f = np.fft.fft(model)
+        
+        # Compute Spectral Residual
+        spectral_residual = np.sum(np.abs(S_f - M_f)**2)
+        
+        # Compute normalized R^2_FFT
+        S_bar = np.mean(S_f)
+        normalization = np.sum(np.abs(S_f - S_bar)**2)
+        R2_FFT = 1 - (spectral_residual / normalization)
+        
+        return spectral_residual, R2_FFT
+    
+    spec_res, R2 = spectral_goodness_of_fit(signal, model)
+    print(spec_res, R2)
+    return spec_res, R2
+    
+def SpectralResidualsCsvBased(csv_file_path): 
+    print("Running")
+    try:
+        df = pd.read_csv(csv_file_path)
+        
+        #if 'TIC_ID' not in df.columns:
+        #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
+        
+        KIC_list = df['KIC'].dropna().astype(str).tolist()
+        FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
+        i = 0 
+        master_list_eps = []
+        while( i < len(KIC_list)):
+            spectral_resid, R2 = SpectralResiduals(KIC_list[i], FUNCTION_list[i])
+            if(i>0):
+                pt.close('all')
+            
+            #half = int(len(eps)/2)
+            #eps_1_half = eps[:half]
+            #eps_2_half = eps[half:]
+            #print(np.average(eps))
+            #print(np.average(eps_1_half))
+            #print(np.average(eps_2_half))
+            master_list_eps.append({"KIC": KIC_list[i], "Spectral Residuals": spectral_resid, "R2_FFT": R2})
+            i += 1
+        df = pd.DataFrame(master_list_eps)
+        df.to_csv('KeplerStarsOutput_Spectral_residual_VALS.csv', index=False)
+        print("\nResults saved to KeplerStarsOutput_Spectral_residual_VALS")
+    except Exception as e:
+        df = pd.DataFrame(master_list_eps)
+        df.to_csv('KeplerStarsOutput_Spectral_residual_VALS.csv', index=False)
+        print("\nResults saved to KeplerStarsOutput_Spectral_residual_VALS")
+        print(f"Error loading TIC IDs: {e}")
+        return []
 #print(percenterror(-216, -258 ))
 
 #getPeriodogramData('')
@@ -1511,7 +1687,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
     #pt.show()
 #print(results)
 #plotsidebysideactual("KIC 8197761")
-
+get_csv_epsilon_value(r"KeplerStarsOutput_combined_copy_eps.csv")
 #seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
 #identifyPeaksOfLightcurves_manual('KIC 3123138', 0)
 #guessLegacy('KIC 4048494',0) 
@@ -1519,27 +1695,35 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #guessIterative('KIC 3429637',0)
 #print(guess("X Caeli", 1))
 #3429637
-#get_csv_epsilon_value(r"ResearchPython\KeplerStarsOutput_combined.csv")
+#CompareTelescopes("63122689", "f(t) = 0.1970 * sin(2π * 3.6556 * t + 1.9644) + 0.8538 + 0.0360 * sin(2π * 7.3117 * t + -6.2832) + 0.1561")
+#get_csv_epsilon_value(r"KeplerStarsOutput.csv")
 
 #print(pt.rcParams.keys())
   # Set y-tick label font size
 
 
-lc = lk.search_lightcurve("TIC 121124576").download_all().stitch().remove_outliers(sigma = 5.0)
+#lc = lk.search_lightcurve("TIC 137817459").download_all().stitch().remove_outliers(sigma = 5.0)
+#lc_kep = lk.search_lightcurve("KIC 2581626").download_all().stitch().remove_outliers(sigma =5.0)
 #pt.figure(figsize=(10, 6))
-t = lc.time.value
-pul_1 = 0.0023* np.sin(2*np.pi*(10.3376)*t + -0.0684) 
-pul_2 = 0.0019 * np.sin(2*np.pi*(12.4714)*t + -6.2832)
-pul_3 = 0.0005 * np.sin(2*np.pi*(10.9363)*t - 6.2832) 
-pul_4 = pul_1 + pul_2 + pul_3 
-pt.plot(lc.time.value, pul_4/np.max(pul_4), label = "Pulsation Mode 1")
-pt.plot(lc.time.value, lc.flux.value/np.max(lc.flux.value), label = "Light Curve")
+
+#lc = lc_kep
+#t = lc.time.value
+#lc.plot() 
+#lc_kep.plot()
+#pul_1 = 0.07190 * np.sin(2*np.pi*(18.139700)*t + -2.440400) 
+#pul_2 = 0.015700*np.sin(2*np.pi*(23.498500)*t + -0.000015)
+#pul_3 = 0.007800 * np.sin(2*np.pi*(5.358700)*t - 1.669385)  + 1.004000
+#pul_4 = pul_1 + pul_2 + pul_3 
+#lc.plot()
+#print(lc.time.value[0])
+#pt.plot(lc.time.value, pul_4, label = "Pulsation Mode 1")
+#t.plot(lc.time.value, lc.flux.value, label = "Light Curve")
 #pt.plot(lc.time.value, pul_2, label = "Pulsation Mode 2")
 #pt.plot(lc.time.value, pul_3, label = "Pulsation Mode 3")
-pt.title("Pulsation Modes for KIC 3429637")
-pt.xlabel("Time -2454833 [BKJD Days]")
-pt.ylabel("Normalized Flux")
-pt.legend()
+#pt.title("Pulsation Modes for KIC 3429637")
+#pt.xlabel("Time -2454833 [BKJD Days]")
+#pt.ylabel("Normalized Flux")
+#pt.legend()
 #getPeriodogramData('KIC 3429637')
 #identifyPeaks('KIC 3429637')
 #seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
