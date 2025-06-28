@@ -1687,7 +1687,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
     #pt.show()
 #print(results)
 #plotsidebysideactual("KIC 8197761")
-get_csv_epsilon_value(r"KeplerStarsOutput_combined_copy_eps.csv")
+SpectralResidualsCsvBased(r"ResearchPython\KeplerStarsOutput_combined.csv")
 #seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
 #identifyPeaksOfLightcurves_manual('KIC 3123138', 0)
 #guessLegacy('KIC 4048494',0) 
