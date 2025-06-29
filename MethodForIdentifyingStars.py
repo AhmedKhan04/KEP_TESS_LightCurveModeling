@@ -12,12 +12,13 @@ from astropy.timeseries import LombScargle
 from lightkurve import search_lightcurve
 from lightkurve import search_targetpixelfile
 from scipy.optimize import curve_fit
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks, lfilter
 from scipy.interpolate import interp1d
 from scipy.spatial.distance import cdist
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.interpolate import interp1d
+
 import scienceplots
 
 def getLightCurveData(nameOfStar):
@@ -1508,9 +1509,9 @@ def seriesofstarsTest_time_error(listofstars):
     print("\nResults saved to KeplerStarsOutput")
 
 def CompareTelescopes(nameOfStar, sine_string): 
-    lc = lk.search_lightcurve(f"KIC {nameOfStar}").download_all().stitch().remove_outliers(sigma = 1.0)
-    signal = lc.flux.value[0:15000]
-    t = lc.time.value[0:15000]
+    lc = lk.search_lightcurve(f"TIC {nameOfStar}").download_all().stitch().remove_outliers(sigma = 1.0)
+    signal = lc.flux.value
+    t = lc.time.value
     sine_string = sine_string.replace('sin', 'np.sin')
     sine_string = sine_string.replace('2π', '2 * np.pi ')
     #sine_string = sine_string.replace('t', ' * t ')
@@ -1524,9 +1525,9 @@ def CompareTelescopes(nameOfStar, sine_string):
         return normalized
     model = normalize_to_minus_one_to_one(model)
     signal = normalize_to_minus_one_to_one(signal)
-    pt.plot(t, model)
-    pt.plot(t,signal)
-    pt.show()
+    #pt.plot(t, model)
+    #pt.plot(t,signal)
+    #pt.show()
     def spectral_goodness_of_fit(signal, model):
         """
         Computes the spectral residual and normalized R^2_FFT goodness-of-fit
@@ -1541,6 +1542,11 @@ def CompareTelescopes(nameOfStar, sine_string):
         - R2_FFT: float
         """
         # Compute the Fourier Transforms
+        n = 15  # the larger n is, the smoother curve will be
+        b = [1.0 / n] * n
+        a = 1
+        signal = lfilter(b, a, signal)
+        
         S_f = np.fft.fft(signal)
         M_f = np.fft.fft(model)
         
@@ -1646,6 +1652,36 @@ def SpectralResidualsCsvBased(csv_file_path):
         print("\nResults saved to KeplerStarsOutput_Spectral_residual_VALS")
         print(f"Error loading TIC IDs: {e}")
         return []
+    
+def CompareTelescopesCsvBased(csv_file_path): 
+    print("Running")
+    try:
+        df = pd.read_csv(csv_file_path)
+        
+        #if 'TIC_ID' not in df.columns:
+        #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
+        
+        TIC_list = df['TIC'].dropna().astype(str).tolist()
+        KIC_list = df['KIC'].dropna().astype(str).tolist()
+        FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
+        i = 0 
+        master_list_eps = []
+        while( i < len(KIC_list)):
+            spec_res, R2 = CompareTelescopes(TIC_list[i], FUNCTION_list[i])
+            if(i>0):
+                pt.close('all')
+            
+            master_list_eps.append({"KIC": KIC_list[i], "TIC":TIC_list[i], "Spectral_Residuals": spec_res, "R2_FFT": R2})
+            i += 1
+        df = pd.DataFrame(master_list_eps)
+        df.to_csv('KeplerStarsOutput_TESS_Residual_VALS.csv', index=False)
+        print("\nResults saved to KeplerStarsOutput")
+    except Exception as e:
+        df = pd.DataFrame(master_list_eps)
+        df.to_csv('KeplerStarsOutput_TESS_Residual_VALS.csv', index=False)
+        print("\nResults saved to KeplerStarsOutput")
+        print(f"Error loading TIC IDs: {e}")
+        return []
 #print(percenterror(-216, -258 ))
 
 #getPeriodogramData('')
@@ -1687,7 +1723,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
     #pt.show()
 #print(results)
 #plotsidebysideactual("KIC 8197761")
-SpectralResidualsCsvBased(r"ResearchPython\KeplerStarsOutput_combined.csv")
+CompareTelescopesCsvBased(r"KeplerStarsOutput_TIC_enabled_with_TIC.csv")
 #seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
 #identifyPeaksOfLightcurves_manual('KIC 3123138', 0)
 #guessLegacy('KIC 4048494',0) 
