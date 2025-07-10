@@ -1683,6 +1683,104 @@ def CompareTelescopesCsvBased(csv_file_path):
         print("\nResults saved to KeplerStarsOutput")
         print(f"Error loading TIC IDs: {e}")
         return []
+    
+def plotMap():
+
+
+    pt.style.use(['science', 'no-latex'])
+    #pt.rcParams.update({'figure.dpi': '500'})
+
+    with open(r"C:\Users\ahmed\Downloads\asu.tsv", 'r') as file:
+        lines = file.readlines()
+
+    kic_list = []
+    ra_list = []
+    de_list = []
+
+    in_data_section = False
+
+    for line in lines:
+        line = line.strip()
+        
+        # Skip comments and empty lines
+        if line.startswith('#') or not line:
+            in_data_section = False
+            continue
+        
+        # Check for the header line that precedes data
+        if line.startswith('_RAJ2000;_DEJ2000;KIC;RAJ2000;DEJ2000'):
+            in_data_section = True
+            continue
+        
+        # Skip the units line (deg;deg; ;deg;deg)
+        if line.startswith('deg;deg; ;deg;deg'):
+            continue
+        
+        
+        if line.startswith('------------;------------;--------;----------;----------'):
+            continue
+        
+        if in_data_section:
+            parts = line.split(';')
+            if len(parts) >= 5:
+            
+                ra = float(parts[3].strip())
+                de = float(parts[4].strip())
+                kic = int(parts[2].strip())
+                
+                ra_list.append(ra)
+                de_list.append(de)
+                kic_list.append(kic)
+
+
+    kic_array = np.array(kic_list)
+    ra_array = np.array(ra_list)
+    de_array = np.array(de_list)
+    df = pd.DataFrame({
+    'KIC': kic_array,
+    'Right Ascension': ra_array,
+    'Declination': de_array})
+    df.to_csv('star_data_locations.csv', index=False)
+
+
+    print("KIC array:", kic_array[:5])
+    print("RA array (degrees):", ra_array[:5])
+    print("DE array (degrees):", de_array[:5])
+    print(f"Total entries: {len(kic_array)}")
+
+    #pt.figure(figsize=(12, 7))
+    pt.scatter(ra_array, de_array, s=2, label='Analyzed Stars')
+    pt.xlabel('Right Ascension (degrees)')
+    pt.ylabel('Declination (degrees)')
+    pt.title('Sky Position of Analyzed Stars')
+    #plt.legend()
+    pt.grid(True)
+    pt.gca().invert_xaxis()
+    pt.show()
+
+    ra_shifted = np.where(ra_array > 180, ra_array - 360, ra_array)
+
+    
+    ra_rad = np.radians(ra_shifted)
+    de_rad = np.radians(de_array)
+    
+    #pt.figure(figsize=(12, 7))
+    pt.figure(figsize=(12, 7))
+    ax = pt.subplot(111, projection="aitoff")
+    pt.scatter(ra_rad, np.radians(de_array), s=1)
+    pt.title('Analyzed Stars in Aitoff Projection')
+    
+    
+    pt.grid(True)
+    pt.xlabel('Right Ascension (degrees)')
+    pt.ylabel('Declination (degrees)')
+    pt.savefig("my_plot.png")
+    pt.show()
+
+
+
+
+#print(find_max_frequency("f(t) = 0.0047 * sin(2π * 1.0983 * t + 2.7960) + 0.7343 + 0.0005 * sin(2π * 1.5464 * t + 3.9936) + 0.0798 + 0.0012 * sin(2π * 2.0353 * t + 3.7956) + 0.1853"))
 #print(percenterror(-216, -258 ))
 
 #getPeriodogramData('')
@@ -1749,8 +1847,8 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 
 #print(pt.rcParams.keys())
   # Set y-tick label font size
-
-print(SpectralResiduals("12268220", "f(t) = 0.0006 * sin(2π * 1.3580 * t + -0.4060) + 0.2128 + 0.0005 * sin(2π * 1.8051 * t + 6.2832) + 0.1782 + 0.0004 * sin(2π * 2.2606 * t + 1.5659) + 0.1511 + 0.0003 * sin(2π * 2.7156 * t + -1.9018) + 0.1190 + 0.0003 * sin(2π * 3.1640 * t + -1.6757) + 0.0954 + 0.0002 * sin(2π * 22.1534 * t + -0.8883) + 0.0912 + 0.0004 * sin(2π * 23.6299 * t + 1.6420) + 0.1505"))
+#plotMap()
+#print(SpectralResiduals("12268220", "f(t) = 0.0006 * sin(2π * 1.3580 * t + -0.4060) + 0.2128 + 0.0005 * sin(2π * 1.8051 * t + 6.2832) + 0.1782 + 0.0004 * sin(2π * 2.2606 * t + 1.5659) + 0.1511 + 0.0003 * sin(2π * 2.7156 * t + -1.9018) + 0.1190 + 0.0003 * sin(2π * 3.1640 * t + -1.6757) + 0.0954 + 0.0002 * sin(2π * 22.1534 * t + -0.8883) + 0.0912 + 0.0004 * sin(2π * 23.6299 * t + 1.6420) + 0.1505"))
 
 #lc = lk.search_lightcurve("TIC 137817459").download_all().stitch().remove_outliers(sigma = 5.0)
 #lc_kep = lk.search_lightcurve("KIC 2581626").download_all().stitch().remove_outliers(sigma =5.0)
