@@ -18,6 +18,10 @@ from scipy.spatial.distance import cdist
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.interpolate import interp1d
+from astroquery.mast import Tesscut
+from astroquery.mast.utils import parse_input_location
+import matplotlib.pyplot as plt
+import unpopular
 
 import scienceplots
 
@@ -80,19 +84,20 @@ def identifyPeaks(nameOfStar, lowerscalar = 0.1):
     if(len(pg.frequency[filtered_peaks]) > 10):
         return -1, 0        
     #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-    #pt.xlabel('Frequency (cycles/day)')
+    #pt.xlabel('Frequency (cycles/BKJD)')
     #pt.ylabel('Power')
     #pt.title('Periodogram with Local Maxima: '+ nameOfStar)
     #pt.legend()
     #pt.show()
+    
     return(pg.frequency[filtered_peaks], lightc, pg.power[filtered_peaks])
 
 def identifyPeaksPowerComp(nameOfStar):
     pg, ltcurves = compGetPeriodogramData(nameOfStar)
     max_power = np.max(pg.power.value)
     peaks, _ = find_peaks(pg.power, height=[max_power * 0.1, max_power * 1.1])
-    #pt.figure(figsize=(10, 6))
-    #pt.plot(pg.frequency, pg.power, label='Periodogram')
+    pt.figure(figsize=(10, 6))
+    pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
     #for i in x:
      #   print(i.value)
@@ -112,12 +117,14 @@ def identifyPeaksPowerComp(nameOfStar):
                 filtered_peaks.append(peaks[i])
     if(len(pg.frequency[filtered_peaks]) > 10):
         return -1, 0
-    #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-    #pt.xlabel('Frequency (cycles/day)')
-    #pt.ylabel('Power')
-    #pt.title('Periodogram with Local Maxima: '+ nameOfStar)
-    #pt.legend()
-    #pt.show()
+    pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
+    pt.xlabel('Frequency (cycles/BKJD)')
+    pt.ylabel('Power')
+    pt.title('Periodogram with Local Maxima: '+ nameOfStar)
+    pt.legend()
+    pt.show()
+    print(pg.frequency[filtered_peaks])
+    print(pg.power[filtered_peaks])
     return(pg.power[filtered_peaks], ltcurves)
 
 
@@ -1668,12 +1675,30 @@ def CompareTelescopesCsvBased(csv_file_path):
         i = 0 
         master_list_eps = []
         while( i < len(KIC_list)):
-            spec_res, R2 = CompareTelescopes(TIC_list[i], FUNCTION_list[i])
-            if(i>0):
+            try:
                 pt.close('all')
-            
-            master_list_eps.append({"KIC": KIC_list[i], "TIC":TIC_list[i], "Spectral_Residuals": spec_res, "R2_FFT": R2})
-            i += 1
+                search_result = lk.search_lightcurve(f"TIC {TIC_list[i]}", author='TASOC' )
+                lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
+                time = lc.time.value
+                flux = lc.flux_corr.value
+                #print(lc.time.unit)
+                #lc.plot()
+                pt.plot(time, flux)
+                pt.title(f"TIC {TIC_list[i]} | KIC {KIC_list[i]}")
+                pt.savefig(fr'C:\Users\ahmed\Downloads\data_images\picture_TIC_{TIC_list[i]}')
+                #pt.xlabel(f'{lc.time.units}')
+                #pt.ylabel(f'{lc.flux_corr.units}')
+                
+                #pt.show()
+                #spec_res, R2 = CompareTelescopes(TIC_list[i], FUNCTION_list[i])
+                #if(i>0):
+                #    pt.close('all')
+                
+                #master_list_eps.append({"KIC": KIC_list[i], "TIC":TIC_list[i], "Spectral_Residuals": spec_res, "R2_FFT": R2})
+                i += 1
+            except: 
+                i+= 1
+                continue
         df = pd.DataFrame(master_list_eps)
         df.to_csv('KeplerStarsOutput_TESS_Residual_VALS.csv', index=False)
         print("\nResults saved to KeplerStarsOutput")
@@ -1742,7 +1767,7 @@ def plotMap():
     'Declination': de_array})
     df.to_csv('star_data_locations.csv', index=False)
 
-
+    
     print("KIC array:", kic_array[:5])
     print("RA array (degrees):", ra_array[:5])
     print("DE array (degrees):", de_array[:5])
@@ -1778,6 +1803,251 @@ def plotMap():
     pt.show()
 
 
+def unpopular_clean_tess(csv_path):
+    print("Running")
+    #test_list = [271959957, 268160106,159302678, 239311449]
+    #test_list = str(test_list)
+    df = pd.read_csv(csv_path)
+    
+    #if 'TIC_ID' not in df.columns:
+    #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
+    
+    TIC_list = df['TIC'].dropna().astype(str).tolist()[50:]
+    KIC_list = df['KIC'].dropna().astype(str).tolist()[50:]
+    FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()[50:]
+    i = 0 
+    master_lists_tess_pop = []
+ 
+    def spectral_goodness_of_fit(signal, model):
+        """
+        Computes the spectral residual and normalized R^2_FFT goodness-of-fit
+        between the signal and the model.
+        
+        Parameters:
+        - signal: numpy array, the observed signal
+        - model: numpy array, the modeled signal
+        
+        Returns:
+        - spectral_residual: float
+        - R2_FFT: float
+        """
+        # Compute the Fourier Transforms
+        #n = 5  # the larger n is, the smoother curve will be
+        #b = [1.0 / n] * n
+        #a = 1
+        #signal = lfilter(b, a, signal)
+        #pt.plot(np.arange(len(signal)), signal)
+        #pt.show()
+        S_f = np.abs(np.fft.rfft(signal))
+        pt.plot(np.arange(len(S_f)),S_f/np.max(S_f), color = 'red', label = 'signal')
+        M_f = np.abs(np.fft.rfft(model))
+        pt.plot(np.arange(len(M_f)),M_f/np.max(M_f), color = 'orange', label = 'model')
+        def FilterPeaksfft(fft, scalar = 0.4):
+            fft /= np.max(fft)
+            peaks, _= find_peaks(fft, prominence=np.max(fft) * scalar)#height=[np.max(fft) * 0.55, np.max(fft) * 1.1])
+            if(len(peaks) == 0):
+                peaks = [np.argmax(fft)]
+            #pt.figure(figsize=(10, 6))
+            #pt.plot(pg.frequency, pg.power, label='Periodogram')
+            peak_amps = fft[peaks]
+            filtered_fft = np.zeros(len(fft))
+            #peak_index = peaks
+            for peak_index in peaks:
+                if peak_index < 100:
+                    continue
+                filtered_fft[peak_index - 25: peak_index+25] = fft[peak_index-25:peak_index+25]
+            #pt.plot(np.arange(len(filtered_fft)), filtered_fft)
+            #filtered_fft = np.fft.ifft(filtered_fft)
+            #print(peak_amps)
+            #pt.plot(np.arange(len(fft)), fft, color = 'green')
+            #pt.scatter(peaks, peak_amps, color = 'red')
+            
+            #pt.show()
+            
+            #print(pg.frequency[filtered_peaks])
+            #print(pg.power[filtered_peaks])
+            return filtered_fft
+        S_f = FilterPeaksfft(S_f)
+        M_f = FilterPeaksfft(M_f, scalar = 0.2)
+        signal = np.fft.ifft(S_f)
+
+        pt.plot(np.arange(len(M_f)), S_f, label = 'Signal_clean')
+        pt.plot(np.arange(len(M_f)), M_f, label = 'Model_clean')
+        pt.title(f"KIC {KIC_list[i]} | TIC {TIC_list[i]}")
+        pt.legend()
+        #pt.show()
+        pt.savefig(fr"C:\Users\ahmed\Downloads\higher try\pic_TIC_{TIC_list[i]}.png")
+        pt.close()
+        # Compute Spectral Residual
+        spectral_residual = np.sum(np.abs(S_f - M_f)**2)
+       
+        # Compute normalized R^2_FFT
+        S_bar = np.mean(signal)
+        normalization = np.sum(np.abs(S_f - S_bar)**2)
+        R2_FFT = 1 - (spectral_residual / normalization)
+        
+        return spectral_residual, R2_FFT
+    
+    while( i < len(KIC_list)):
+        try:
+            master_flux = []
+            master_time = []
+            sine_string = FUNCTION_list[i]
+            pt.close('all')
+            #if TIC_list[i] not in test_list:
+            #    i+= 1
+            #    continue
+            search_result = lk.search_tesscut(target=f"TIC{TIC_list[i]}", sector  = [14,15] )
+            
+            print(search_result)
+            tpf_collection = search_result.download_all(cutout_size=50)
+            
+            for l in tpf_collection:
+                s = unpopular.Source(l.path, remove_bad=True)
+                s.set_aperture(rowlims=[25, 26], collims=[25, 26])
+                s.add_cpm_model(exclusion_size=5, n=64, predictor_method="similar_brightness")
+                s.set_regs([0.1])
+                s.holdout_fit_predict(k=100);
+
+                aperture_normalized_flux = s.get_aperture_lc(data_type="normalized_flux")
+                aperture_cpm_prediction = s.get_aperture_lc(data_type="cpm_prediction", weighting=None)
+                #pt.plot(s.time, aperture_normalized_flux, ".", c="k", ms=8, label="Normalized Flux")
+                #pt.plot(s.time, aperture_cpm_prediction, "-", lw=3, c="C3", alpha=0.8, label="CPM Prediction")
+                #pt.xlabel("Time - 2457000 [Days]", fontsize=30)
+                #pt.ylabel("Normalized Flux", fontsize=30)
+                #pt.tick_params(labelsize=20)
+                #pt.legend(fontsize=30)
+                
+                apt_detrended_flux = s.get_aperture_lc(data_type="cpm_subtracted_flux")
+                min_val = np.percentile(apt_detrended_flux, 5)
+                max_val = np.percentile(apt_detrended_flux,95)
+
+                normalized_data = (2 * (apt_detrended_flux - min_val) / (max_val - min_val) - 1) 
+                master_flux.extend(normalized_data)
+                master_time.extend(s.time)
+            t = np.array(master_time)
+            sine_string = sine_string.replace('sin', 'np.sin')
+            #sine_string = sine_string.replace('2π', '2 * np.pi ')
+            sine_string = sine_string.replace('2??', '2 * np.pi' )
+            #sine_string = sine_string.replace('t', ' * t ')
+            sine_string = sine_string.replace("f(t) = ", "")
+            print(sine_string)
+            model = eval(sine_string)
+            model = 2 * (model - np.min(model)) / (np.max(model) - np.min(model)) - 1
+            #model *= np.max(master_flux)
+            spec, R2  = spectral_goodness_of_fit(master_flux, model )
+            print(spec, R2)
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2FFT": R2})
+            #pt.plot(master_time, master_flux, "k-")
+            pt.title(f"TIC {TIC_list[i]} | KIC {KIC_list[i]}")
+            #pt.savefig(fr"C:\Users\ahmed\Downloads\Filtering Results\unpop_pic_{TIC_list[i]}.png")
+            i+=1
+
+        except Exception as the_exception:
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": 0,"R2FFT": -1})
+            print('did not find')
+            print(the_exception)
+            df = pd.DataFrame(master_lists_tess_pop)
+            df.to_csv(r"C:\Users\ahmed\Downloads\higher try\results.csv")
+            i+=1
+            continue
+
+
+        
+
+    df = pd.DataFrame(master_lists_tess_pop)
+    df.to_csv(fr"C:\Users\ahmed\Downloads\higher try\results.csv")
+
+
+def tess_clean_MAST(csv_path):
+    print("Running")
+
+    df = pd.read_csv(csv_path)
+    
+    #if 'TIC_ID' not in df.columns:
+    #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
+    
+    TIC_list = df['TIC'].dropna().astype(str).tolist()[:10]
+    KIC_list = df['KIC'].dropna().astype(str).tolist()[:10]
+    FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()[:10]
+    i = 0 
+    master_lists_tess_pop = []
+ 
+    def spectral_goodness_of_fit(signal, model):
+        """
+        Computes the spectral residual and normalized R^2_FFT goodness-of-fit
+        between the signal and the model.
+        
+        Parameters:
+        - signal: numpy array, the observed signal
+        - model: numpy array, the modeled signal
+        
+        Returns:
+        - spectral_residual: float
+        - R2_FFT: float
+        """
+        # Compute the Fourier Transforms
+        #n = 15  # the larger n is, the smoother curve will be
+        #b = [1.0 / n] * n
+        #a = 1
+        #signal = lfilter(b, a, signal)
+        
+        S_f = np.fft.fft(signal)
+        M_f = np.fft.fft(model)
+        
+        # Compute Spectral Residual
+        spectral_residual = np.sum(np.abs(S_f - M_f)**2)
+        
+        # Compute normalized R^2_FFT
+        S_bar = np.mean(S_f)
+        normalization = np.sum(np.abs(S_f - S_bar)**2)
+        R2_FFT = 1 - (spectral_residual / normalization)
+        
+        return spectral_residual, R2_FFT
+    
+    while( i < len(KIC_list)):
+        try:
+            #master_flux = []
+            #master_time = []
+            sine_string = FUNCTION_list[i]
+            pt.close('all')
+            
+
+            search_result = lk.search_lightcurve(f"TIC {TIC_list[i]}", author='TASOC' )
+            lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
+            t = lc.time.value
+            signal = lc.flux_corr.value
+
+            signal = 2 * (signal - np.min(signal)) / (np.max(signal) - np.min(signal)) - 1
+
+            t = np.array(t)
+            sine_string = sine_string.replace('sin', 'np.sin')
+            sine_string = sine_string.replace('2π', '2 * np.pi ')
+            #sine_string = sine_string.replace('t', ' * t ')
+            sine_string = sine_string.replace("f(t) = ", "")
+            print(sine_string)
+            model = eval(sine_string)
+            model = 2 * (model - np.min(model)) / (np.max(model) - np.min(model)) - 1
+            spec, R2  = spectral_goodness_of_fit(signal, model)
+            print(spec, R2)
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2FFT": R2})
+            pt.plot(t, signal, "k-")
+            pt.title(f"TIC {TIC_list[i]} | KIC {KIC_list[i]}")
+            pt.savefig(fr"C:\Users\ahmed\research_delta\ResearchPython\folder_tess_MAST\NATIVE_pic_{TIC_list[i]}.png")
+            i+=1
+
+        except:
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": 0,"R2FFT": -100000})
+            print('did not find')
+            i+=1
+            continue
+
+
+        
+
+    df = pd.DataFrame(master_lists_tess_pop)
+    df.to_csv(fr"C:\Users\ahmed\research_delta\ResearchPython\folder_tess_MAST\results.csv")
+    
 
 
 #print(find_max_frequency("f(t) = 0.0047 * sin(2π * 1.0983 * t + 2.7960) + 0.7343 + 0.0005 * sin(2π * 1.5464 * t + 3.9936) + 0.0798 + 0.0012 * sin(2π * 2.0353 * t + 3.7956) + 0.1853"))
@@ -1834,7 +2104,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #print(np.average(eps_1_half))
 #print(np.average(eps_2_half))
 #plotsidebysideactual("KIC 8197761")
-#CompareTelescopesCsvBased(r"KeplerStarsOutput_TIC_enabled_with_TIC.csv")
+unpopular_clean_tess(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_TIC_enabled_with_TIC_new.csv")
 #seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
 #identifyPeaksOfLightcurves_manual('KIC 3123138', 0)
 #guessLegacy('KIC 4048494',0) 
@@ -1844,7 +2114,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #3429637
 #CompareTelescopes("63122689", "f(t) = 0.1970 * sin(2π * 3.6556 * t + 1.9644) + 0.8538 + 0.0360 * sin(2π * 7.3117 * t + -6.2832) + 0.1561")
 #get_csv_epsilon_value(r"KeplerStarsOutput.csv")
-
+#identifyPeaksPowerComp('3429637')
 #print(pt.rcParams.keys())
   # Set y-tick label font size
 #plotMap()
