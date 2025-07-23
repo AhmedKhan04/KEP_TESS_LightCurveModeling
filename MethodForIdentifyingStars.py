@@ -96,8 +96,8 @@ def identifyPeaksPowerComp(nameOfStar):
     pg, ltcurves = compGetPeriodogramData(nameOfStar)
     max_power = np.max(pg.power.value)
     peaks, _ = find_peaks(pg.power, height=[max_power * 0.1, max_power * 1.1])
-    pt.figure(figsize=(10, 6))
-    pt.plot(pg.frequency, pg.power, label='Periodogram')
+    #pt.figure(figsize=(10, 6))
+    #pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
     #for i in x:
      #   print(i.value)
@@ -117,12 +117,12 @@ def identifyPeaksPowerComp(nameOfStar):
                 filtered_peaks.append(peaks[i])
     if(len(pg.frequency[filtered_peaks]) > 10):
         return -1, 0
-    pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-    pt.xlabel('Frequency (cycles/BKJD)')
-    pt.ylabel('Power')
-    pt.title('Periodogram with Local Maxima: '+ nameOfStar)
-    pt.legend()
-    pt.show()
+    #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
+    #pt.xlabel('Frequency (cycles/BKJD)')
+    #pt.ylabel('Power')
+    #pt.title('Periodogram with Local Maxima: '+ nameOfStar)
+    #pt.legend()
+    #pt.show()
     print(pg.frequency[filtered_peaks])
     print(pg.power[filtered_peaks])
     return(pg.power[filtered_peaks], ltcurves)
@@ -1801,7 +1801,88 @@ def plotMap():
     pt.ylabel('Declination (degrees)')
     pt.savefig("my_plot.png")
     pt.show()
+    
+def plotMap():
+    pt.style.use(['science', 'no-latex'])
 
+    with open(r"C:\Users\ahmed\Downloads\asu.tsv", 'r') as file:
+        lines = file.readlines()
+
+    kic_list = []
+    ra_list = []
+    de_list = []
+
+    in_data_section = False
+
+    for line in lines:
+        line = line.strip()
+        if line.startswith('#') or not line:
+            in_data_section = False
+            continue
+        if line.startswith('_RAJ2000;_DEJ2000;KIC;RAJ2000;DEJ2000'):
+            in_data_section = True
+            continue
+        if line.startswith('deg;deg; ;deg;deg') or line.startswith('------------'):
+            continue
+
+        if in_data_section:
+            parts = line.split(';')
+            if len(parts) >= 5:
+                ra = float(parts[3].strip())
+                de = float(parts[4].strip())
+                kic = int(parts[2].strip())
+
+                ra_list.append(ra)
+                de_list.append(de)
+                kic_list.append(kic)
+
+    kic_array = np.array(kic_list)
+    ra_array = np.array(ra_list)
+    de_array = np.array(de_list)
+
+    df = pd.DataFrame({
+        'KIC': kic_array,
+        'Right Ascension': ra_array,
+        'Declination': de_array})
+    #df.to_csv('star_data_locations.csv', index=False)
+
+    print("KIC array:", kic_array[:5])
+    print("RA array (degrees):", ra_array[:5])
+    print("DE array (degrees):", de_array[:5])
+    print(f"Total entries: {len(kic_array)}")
+
+    pt.scatter(ra_array, de_array, s=2, label='Analyzed Stars')
+    pt.xlabel('Right Ascension (degrees)')
+    pt.ylabel('Declination (degrees)')
+    pt.title('Sky Position of Analyzed Stars')
+    pt.grid(True)
+    pt.gca().invert_xaxis()
+    pt.show()
+
+    ra_shifted = np.where(ra_array > 180, ra_array - 360, ra_array)
+    ra_rad = np.radians(ra_shifted)
+    de_rad = np.radians(de_array)
+
+    pt.figure(figsize=(12, 7))
+    ax = pt.subplot(111, projection="aitoff")
+    ax.scatter(ra_rad, de_rad, s=1)
+
+    # Set manual ticks
+    xticks_deg = np.arange(-180, 181, 60)
+    yticks_deg = np.arange(-90, 91, 30)
+    xtick_labels = [f"{int(t)}" if abs(t) != 180 else '' for t in xticks_deg]
+    ytick_labels = [f"{int(t)}" if abs(t) != 90 else '' for t in yticks_deg]
+    ax.set_xticks(np.radians(xticks_deg))
+    ax.set_xticklabels(xtick_labels)
+    ax.set_yticks(np.radians(yticks_deg))
+    ax.set_yticklabels(ytick_labels)
+
+    ax.set_title('Analyzed Stars in Aitoff Projection')
+    ax.grid(True)
+    pt.xlabel('Right Ascension (degrees)')
+    pt.ylabel('Declination (degrees)')
+    #pt.savefig("my_plot.png")
+    pt.show()
 
 def unpopular_clean_tess(csv_path):
     print("Running")
@@ -2047,7 +2128,144 @@ def tess_clean_MAST(csv_path):
 
     df = pd.DataFrame(master_lists_tess_pop)
     df.to_csv(fr"C:\Users\ahmed\research_delta\ResearchPython\folder_tess_MAST\results.csv")
+
+# only for plotting  
+def unpopular_clean_tess_plotting(csv_path):
+    print("Running")
+    df = pd.read_csv(csv_path)
+
+    TIC_list = df['TIC'].dropna().astype(str).tolist()
+    KIC_list = df['KIC'].dropna().astype(str).tolist()
+    FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
+    i = 0 
+    master_lists_tess_pop = []
     
+    def spectral_goodness_of_fit(signal, model, master_time):
+        dt = master_time[1] - master_time[0]
+        S_f = np.abs(np.fft.rfft(signal))
+        x_axis = np.fft.rfftfreq(n=2*len(S_f)-1, d = dt)
+        pt.plot(x_axis,S_f/np.max(S_f), color = 'red', label = 'TESS Light Curve')
+        M_f = np.abs(np.fft.rfft(model))
+        pt.plot(x_axis,M_f/np.max(M_f), color = 'orange', label = 'Model')
+        def FilterPeaksfft(fft, scalar = 0.4):
+            fft /= np.max(fft)
+            peaks, _= find_peaks(fft, prominence=np.max(fft) * scalar)#height=[np.max(fft) * 0.55, np.max(fft) * 1.1])
+            if(len(peaks) == 0):
+                peaks = [np.argmax(fft)]
+            #pt.figure(figsize=(10, 6))
+            #pt.plot(pg.frequency, pg.power, label='Periodogram')
+            peak_amps = fft[peaks]
+            filtered_fft = np.zeros(len(fft))
+            #peak_index = peaks
+            for peak_index in peaks:
+                if peak_index < 100:
+                    continue
+                filtered_fft[peak_index - 25: peak_index+25] = fft[peak_index-25:peak_index+25]
+            #pt.plot(np.arange(len(filtered_fft)), filtered_fft)
+            #filtered_fft = np.fft.ifft(filtered_fft)
+            #print(peak_amps)
+            #pt.plot(np.arange(len(fft)), fft, color = 'green')
+            #pt.scatter(peaks, peak_amps, color = 'red')
+            
+            #pt.show()
+            
+            #print(pg.frequency[filtered_peaks])
+            #print(pg.power[filtered_peaks])
+            return filtered_fft
+        S_f = FilterPeaksfft(S_f)
+        M_f = FilterPeaksfft(M_f, scalar = 0.2)
+        signal = np.fft.ifft(S_f)
+
+        pt.plot(x_axis, S_f, label = 'Filtered TESS Light Curve')
+        pt.plot(x_axis, M_f, label = 'Filtered Model')
+        pt.title(f"FFT for KIC {KIC_list[i]} and TIC {TIC_list[i]}")
+        pt.xlabel('Frequency (cycles/BKJD)')
+        pt.ylabel('Normalized Power')
+        pt.legend()
+        #pt.show()
+        #pt.savefig(fr"C:\Users\ahmed\Downloads\higher try\pic_TIC_{TIC_list[i]}.png")
+        pt.show()
+        # Compute Spectral Residual
+        spectral_residual = np.sum(np.abs(S_f - M_f)**2)
+       
+        # Compute normalized R^2_FFT
+        S_bar = np.mean(signal)
+        normalization = np.sum(np.abs(S_f - S_bar)**2)
+        R2_FFT = 1 - (spectral_residual / normalization)
+        
+        return spectral_residual, R2_FFT
+    
+    while( i < len(KIC_list)):
+        try:
+            master_flux = []
+            master_time = []
+            sine_string = FUNCTION_list[i]
+            pt.close('all')
+            #if TIC_list[i] not in test_list:
+            #    i+= 1
+            #    continue
+            search_result = lk.search_tesscut(target=f"TIC{TIC_list[i]}", sector  = [14,15] )
+            
+            print(search_result)
+            tpf_collection = search_result.download_all(cutout_size=50)
+            
+            for l in tpf_collection:
+                s = unpopular.Source(l.path, remove_bad=True)
+                s.set_aperture(rowlims=[25, 26], collims=[25, 26])
+                s.add_cpm_model(exclusion_size=5, n=64, predictor_method="similar_brightness")
+                s.set_regs([0.1])
+                s.holdout_fit_predict(k=100);
+
+                aperture_normalized_flux = s.get_aperture_lc(data_type="normalized_flux")
+                aperture_cpm_prediction = s.get_aperture_lc(data_type="cpm_prediction", weighting=None)
+                #pt.plot(s.time, aperture_normalized_flux, ".", c="k", ms=8, label="Normalized Flux")
+                #pt.plot(s.time, aperture_cpm_prediction, "-", lw=3, c="C3", alpha=0.8, label="CPM Prediction")
+                #pt.xlabel("Time - 2457000 [Days]", fontsize=30)
+                #pt.ylabel("Normalized Flux", fontsize=30)
+                #pt.tick_params(labelsize=20)
+                #pt.legend(fontsize=30)
+                
+                apt_detrended_flux = s.get_aperture_lc(data_type="cpm_subtracted_flux")
+                min_val = np.percentile(apt_detrended_flux, 5)
+                max_val = np.percentile(apt_detrended_flux,95)
+
+                normalized_data = (2 * (apt_detrended_flux - min_val) / (max_val - min_val) - 1) 
+                master_flux.extend(normalized_data)
+                master_time.extend(s.time)
+            t = np.array(master_time)
+            sine_string = sine_string.replace('sin', 'np.sin')
+            #sine_string = sine_string.replace('2π', '2 * np.pi ')
+            sine_string = sine_string.replace('2??', '2 * np.pi' )
+            #sine_string = sine_string.replace('t', ' * t ')
+            sine_string = sine_string.replace("f(t) = ", "")
+            print(sine_string)
+            model = eval(sine_string)
+            model = 2 * (model - np.min(model)) / (np.max(model) - np.min(model)) - 1
+            #model *= np.max(master_flux)
+            spec, R2  = spectral_goodness_of_fit(master_flux, model, master_time )
+            print(spec, R2)
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2FFT": R2})
+            #pt.plot(master_time, master_flux, "k-")
+            pt.title(f"TIC {TIC_list[i]} | KIC {KIC_list[i]}")
+            #pt.savefig(fr"C:\Users\ahmed\Downloads\Filtering Results\unpop_pic_{TIC_list[i]}.png")
+            i+=1
+
+        except Exception as the_exception:
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": 0,"R2FFT": -1})
+            print('did not find')
+            print(the_exception)
+            #df = pd.DataFrame(master_lists_tess_pop)
+            #df.to_csv(r"C:\Users\ahmed\Downloads\higher try\results.csv")
+            i+=1
+            continue
+
+
+        
+
+    #df = pd.DataFrame(master_lists_tess_pop)
+    #df.to_csv(fr"C:\Users\ahmed\Downloads\higher try\results.csv")
+
+
 
 
 #print(find_max_frequency("f(t) = 0.0047 * sin(2π * 1.0983 * t + 2.7960) + 0.7343 + 0.0005 * sin(2π * 1.5464 * t + 3.9936) + 0.0798 + 0.0012 * sin(2π * 2.0353 * t + 3.7956) + 0.1853"))
@@ -2095,7 +2313,8 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #eps = get_epsilon_value("3429637", "f(t) = 0.0022 * sin(2π * 10.3376 * t + -0.2375) + 0.4865 + 0.0005 * sin(2π * 10.9363 * t + -6.2832) + 0.1066 + 0.0018 * sin(2π * 12.4714 * t + -6.2832) + 0.4069")
 
 #eps = get_epsilon_value("12268220", "f(t) = 0.0006 * sin(2π * 1.3580 * t + -0.4060) + 0.2128 + 0.0005 * sin(2π * 1.8051 * t + 6.2832) + 0.1782 + 0.0004 * sin(2π * 2.2606 * t + 1.5659) + 0.1511 + 0.0003 * sin(2π * 2.7156 * t + -1.9018) + 0.1190 + 0.0003 * sin(2π * 3.1640 * t + -1.6757) + 0.0954 + 0.0002 * sin(2π * 22.1534 * t + -0.8883) + 0.0912 + 0.0004 * sin(2π * 23.6299 * t + 1.6420) + 0.1505")
-
+#print(getCompositeSine2_second_test("8197761"))
+#print(getCompositeSine2_second_test("12602250"))
 #print(getCompositeSine2_second_test("12268220"))
 #half = int(len(eps)/2)
 #eps_1_half = eps[:half]
@@ -2104,7 +2323,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #print(np.average(eps_1_half))
 #print(np.average(eps_2_half))
 #plotsidebysideactual("KIC 8197761")
-unpopular_clean_tess(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_TIC_enabled_with_TIC_new.csv")
+#unpopular_clean_tess_plotting(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_TIC_enabled_with_TIC_new.csv")
 #seriesofstarsTest_time_error(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_2_timeerror.csv"))
 #identifyPeaksOfLightcurves_manual('KIC 3123138', 0)
 #guessLegacy('KIC 4048494',0) 
@@ -2117,7 +2336,7 @@ unpopular_clean_tess(r"C:\Users\ahmed\research_delta\KeplerStarsOutput_TIC_enabl
 #identifyPeaksPowerComp('3429637')
 #print(pt.rcParams.keys())
   # Set y-tick label font size
-#plotMap()
+plotMap()
 #print(SpectralResiduals("12268220", "f(t) = 0.0006 * sin(2π * 1.3580 * t + -0.4060) + 0.2128 + 0.0005 * sin(2π * 1.8051 * t + 6.2832) + 0.1782 + 0.0004 * sin(2π * 2.2606 * t + 1.5659) + 0.1511 + 0.0003 * sin(2π * 2.7156 * t + -1.9018) + 0.1190 + 0.0003 * sin(2π * 3.1640 * t + -1.6757) + 0.0954 + 0.0002 * sin(2π * 22.1534 * t + -0.8883) + 0.0912 + 0.0004 * sin(2π * 23.6299 * t + 1.6420) + 0.1505"))
 
 #lc = lk.search_lightcurve("TIC 137817459").download_all().stitch().remove_outliers(sigma = 5.0)
@@ -2158,7 +2377,7 @@ f(t) = 0.0047 * sin(2π * 1.0983 * t + 2.7960) + 0.7343 + 0.0005 * sin(2π * 1.5
 
 12602250
 f(t) = 0.0004 * sin(2π * 11.6214 * t + 1.8740) + 0.6758 + 0.0002 * sin(2π * 14.9794 * t + 3.3672) + 0.3244')
-0.0009388682743293237
+0.009388682743293237
 0.0017640377816918397
 0.00011398020267873233
 0.9998491956880848
@@ -2172,6 +2391,10 @@ f(t) = 0.0006 * sin(2π * 1.3580 * t + -0.4060) + 0.2128 + 0.0005 * sin(2π * 1.
 
 """
 """
+
+11027806 OMIT
+
+
 
 KIC 2297728
 Could not get data, lightcurve has corrupted files???? No idea. Only experienced this once prior. 
