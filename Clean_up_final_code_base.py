@@ -267,7 +267,6 @@ def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_resu
         #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
     #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
     return params_list, lc, list_comp
-#params_list.append((amplitude, phase, frequency, offset)) 
 
 def align_arrays(time, flux):
     """
@@ -290,12 +289,33 @@ def align_arrays(time, flux):
     flux = flux[vi]
     return time, flux
 
-def getMeanSquaredResidual(a, search_result, frequency, powerofpeaks_arg):
+def getMeanSquaredResidual(nameOfStar, search_result, frequency, powerofpeaks_arg):
+        """
+        Helper function to calculate Mean Square Residual swiftly (Legacy)
+
+        Args:
+            nameOfStar (str): KIC code to search for.
+
+            search_result (astroquery): astroquery of the lightcurve of the star
+
+            frequency (np.array): peak frequencies of the stars pulsation 
+
+            search_result (astroquery): astroquery of the lightcurve of the star
+
+            powerofpeaks_arg (np.array): array of power values for peak frequencies
+
+        Returns:
+            bestmeanSquare (float): MSE Value
+
+            bestbound (Lightcurve): bounding parameter for best results
+
+            
+        """
         bestmeanSquare = 100000
         bestBound = 0
         lc = search_result
         for bounds1 in range(54,56): #######
-            listofsines = guessHelper(a,bounds1, search_result, frequency)
+            listofsines = guessHelper(nameOfStar,bounds1, search_result, frequency)
             addedTogether = 0
             time = lc.time.value
             flux = lc.flux.value
@@ -328,15 +348,42 @@ def getMeanSquaredResidual(a, search_result, frequency, powerofpeaks_arg):
         return bestmeanSquare, bestBound/100
 
 def getResiduals(fit, flux): 
+    """
+        Helper function to calculate Residuals swiftly (Legacy)
+
+        Args:
+            fit (np.array): predictive model
+
+            flux (np.array): flux values of the light curve
+        
+        Returns:
+            meanSquare (float): MSE value 
+    
+    """
     residuals = flux - fit
     meanSquare = np.sum((residuals)**2)/len(flux)
     return meanSquare
 
-def getCompositeSine2(a):
-        powerOfPeaks, _ = identifyPeaksPowerComp(a)
+def getCompositeSine2(nameOfStar):
+        """
+        Swiftly generates the predictive model for star
+
+        Args:
+        
+            nameOfStar (str): KIC code to search for.
+
+        Returns:
+
+            addedTogether (np.array): Predictive model for star
+            
+            lc (lightcurve): light curve object of star
+        
+        
+        """
+        powerOfPeaks, _ = identifyPeaksPowerComp(nameOfStar)
         print(len(powerOfPeaks))
         powerOfPeaks = powerOfPeaks.value
-        listofsines, lc = guessActual(a)
+        listofsines, lc = guessActual(nameOfStar)
         addedTogether = 0
         time = lc.time.value
         flux = lc.flux.value
@@ -356,20 +403,36 @@ def getCompositeSine2(a):
             sine_print_terms.append(f"{amplitude:.4f} * sin(2π * {frequency:.4f} * t + {phase:.4f}) + {offset:.4f}")
             p += 1
         #addedTogether  = addedTogether/total_weight
-        print(f"Composite Sine Function for {a}:")
+        print(f"Composite Sine Function for {nameOfStar}:")
         print("f(t) = " + " + ".join(sine_print_terms))
         print(total_weight)
         return addedTogether, lc     
 
-def getCompositeSine2_second_test(a):
-        powerOfPeaks, _ = identifyPeaksPowerComp(a)
+def getCompositeSine2_second_test(nameOfStar):
+        """
+        Deeply generates the predictive model for star
+
+        Args:
+        
+            nameOfStar (str): KIC code to search for.
+
+        Returns:
+
+            addedTogether (np.array): Predictive model for star
+            
+            lc (lightcurve): light curve object of star
+
+            composite_string: string of full predictive model as superpositions of sinusoidal functions
+        
+        """
+        powerOfPeaks, _ = identifyPeaksPowerComp(nameOfStar)
         if(powerOfPeaks == -1):
             return [-10], 0
         print(len(powerOfPeaks))
         powerOfPeaks = powerOfPeaks.value
-        frequencyfitted2, search_result2, powers2 = identifyPeaks(a)
+        frequencyfitted2, search_result2, powers2 = identifyPeaks(nameOfStar)
         amplitude_scale = 0.5
-        listofsines, lc, _ = guessActual_refined_second_iteration(a, amplitude_scale, frequencyfitted2, search_result2, powers2)
+        listofsines, lc, _ = guessActual_refined_second_iteration(nameOfStar, amplitude_scale, frequencyfitted2, search_result2, powers2)
         if(listofsines == [0]):
             return [-10],[0],"0"
         listofindexs =[]
@@ -397,8 +460,8 @@ def getCompositeSine2_second_test(a):
             low_amplitude_scale = amplitude_scale*  0.9
             high_amplitude_scale =  amplitude_scale*  1.1
             
-            lower, _,fits_low = guessActual_refined_second_iteration(a, low_amplitude_scale, frequencyfitted2, search_result2, powers2)
-            upper, _, fits_high = guessActual_refined_second_iteration(a, high_amplitude_scale, frequencyfitted2, search_result2, powers2)
+            lower, _,fits_low = guessActual_refined_second_iteration(nameOfStar, low_amplitude_scale, frequencyfitted2, search_result2, powers2)
+            upper, _, fits_high = guessActual_refined_second_iteration(nameOfStar, high_amplitude_scale, frequencyfitted2, search_result2, powers2)
             lowertot = 0
             uppertot = 0 
             countinner = 0
@@ -455,14 +518,21 @@ def getCompositeSine2_second_test(a):
             count += 1
         #addedTogether  = addedTogether/total_weight
         composite_string  = "f(t) = " + " + ".join(sine_print_terms)
-        print(f"Composite Sine Function for {a}:")
+        print(f"Composite Sine Function for {nameOfStar}:")
         print(composite_string)
         print(total_weight)
         print(listofindexs)
         return newaddedtogether, lc, composite_string    
 
-def plotsidebysideactual_manual(a):
-    function, lc = getCompositeSine2(a)
+def plotsidebysideactual_manual(nameOfStar):
+    """
+    Swiftly generates model and plots light curve, predictive model and residuals
+    
+    Args:
+        nameOfStar (str): KIC code to search for.
+    
+    """
+    function, lc = getCompositeSine2(nameOfStar)
     flux = lc.flux.value
     print(flux)
     print(function)
@@ -480,7 +550,7 @@ def plotsidebysideactual_manual(a):
     pt.plot(time, function, 'o-', color='green', label='Curve Fit')
     #pt.plot(time, a, 'o-', color = 'blue')
     pt.axhline(0, color='red', linestyle='--', linewidth=1, label='Zero Line')
-    pt.title("O-C Diagram " + str(a))
+    pt.title("O-C Diagram " + str(nameOfStar))
     pt.xlabel("Time (Days)")
     pt.ylabel("O-C (Flux Difference)")
     pt.legend()
@@ -492,8 +562,15 @@ def plotsidebysideactual_manual(a):
     #pt.plot(residuals, 'g')
     #pt.show()
 
-def plotsidebysideactual(a):
-    function, lc, _ = getCompositeSine2_second_test(a)
+def plotsidebysideactual(nameOfStar):
+    """
+    Deeply generates model and plots light curve, predictive model and residuals
+    
+    Args:
+        nameOfStar (str): KIC code to search for.
+    
+    """
+    function, lc, _ = getCompositeSine2_second_test(nameOfStar)
     flux = lc.flux.value
     print(flux)
     print(function)
@@ -511,7 +588,7 @@ def plotsidebysideactual(a):
     pt.plot(time, function, 'o-', color='green', label='Curve Fit')
     #pt.plot(time, a, 'o-', color = 'blue')
     pt.axhline(0, color='red', linestyle='--', linewidth=1, label='Zero Line')
-    pt.title("Diagram For " + str(a))
+    pt.title("Diagram For " + str(nameOfStar))
     pt.xlabel("Time -2454833 [BKJD Days]")
     pt.ylabel("Normalized Flux")
     pt.legend()
@@ -523,44 +600,37 @@ def plotsidebysideactual(a):
     #pt.plot(residuals, 'g')
     #pt.show()
 
-def plotsidebyside2(a):
-    function = getCompositeSine(a)
-    lc = lk.search_lightcurve(a,quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
-    flux = lc.flux.value
-    print(flux)
-    print(function)
-    time = lc.time.value
-    min_length = min(len(flux), len(function))
-    flux = flux[:min_length]
-    time = time[:min_length]
-    function = function[:min_length]
-    residuals = flux - function
-    print(np.sum((residuals)**2)/len(flux))
-    #a = 0.00219*np.sin(2*np.pi*10.33759*time+-0.21704)+ 0.54456 + 0.00183*np.sin(2*np.pi*12.47142*time+-6.28319) + 0.45546
-    print(residuals)
-    pt.plot(time, residuals, 'o-', color='blue', label='O-C (Observed - Calculated)')
-    pt.plot(time, flux, 'o-', color='red', label='Light Curve')
-    pt.plot(time, function, 'o-', color='green', label='Curve Fit')
-    #pt.plot(time, a, 'o-', color = 'blue')
-    pt.axhline(0, color='red', linestyle='--', linewidth=1, label='Zero Line')
-    pt.title("O-C Diagram " + str(a))
-    pt.xlabel("Time (Days)")
-    pt.ylabel("O-C (Flux Difference)")
-    pt.legend()
-    pt.grid()
-    pt.tight_layout()
-    pt.show()
-    #pt.plot(flux, 'b')
-    #pt.plot(function, 'r')
-    #pt.plot(residuals, 'g')
-    #pt.show()
-
 def interpolate(time, flux, target_time):
+    """
+    Helper function to interpolate values 
+
+    Args:
+        time (np.array): time array of light curve
+        flux (np.array): flux array of light curve
+        target_time (float): time point area desired
+    
+    Returns:
+        interpolated_flux (np.array): interpolated flux array
+    
+    """
     ip = interp1d(time, flux, kind='nearest', bounds_error=False, fill_value='extrapolate')
     interpolated_flux = ip(target_time)
     return interpolated_flux 
 
 def get_epsilon_value(star_name, sine_string):
+    """
+    For a given star and predictive model, generates epsilon values
+
+    Args:
+        star_name (str): name of star KIC
+
+        sine_string (str): predictive model sine string
+    
+    Returns:
+        epsilon_values (np.array): array containing all epsilon values
+    
+    
+    """
 
     search_result = lk.search_lightcurve(f"KIC {star_name}")
     lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
@@ -686,8 +756,20 @@ def get_epsilon_value(star_name, sine_string):
     """
     return true_time-est_time
 
-def guessActual(a):
-    frequencyfitted, search_result, powers = identifyPeaks(a)
+def guessActual(nameOfStar):
+    """
+    Given a star, generates a quick baseline predictive model guess
+
+    Args:
+        nameOfStar: KIC identifier for the star
+    
+    Returns:
+        params_list (np.array): list of sinusoidal parameters for components of the predictive model
+
+        lc (Lightcurve): lightcurve of the star
+    
+    """
+    frequencyfitted, search_result, powers = identifyPeaks(nameOfStar)
     lc = search_result
     #lc.plot()
     #pt.show()
@@ -732,15 +814,26 @@ def guessActual(a):
     #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
     return params_list, lc 
 
-def getCompositeSine(a):
-        listofsines = guessActual(a)
+def getCompositeSine(nameOfStar):
+        """
+        Helper function to swiftly take sinusodial models and superimpose and scale them 
+
+        Args:
+            nameOfStar: KIC identifier of the star
+
+        Return:
+            addedTogether: predictive model of the star's lightcurve
+        
+        
+        """
+        listofsines = guessActual(nameOfStar)
         addedTogether = 0
-        search_result = lk.search_lightcurve(a,quarter=(6,7,8))
+        search_result = lk.search_lightcurve(nameOfStar,quarter=(6,7,8))
         lc = search_result.download_all().stitch()
         time = lc.time.value
         flux = lc.flux.value
         time, flux = align_arrays(time,flux)
-        powerOfPeaks = identifyPeaksPowerComp(a).value
+        powerOfPeaks = identifyPeaksPowerComp(nameOfStar).value
 
 
         p = 0 
@@ -762,6 +855,13 @@ def getCompositeSine(a):
         return addedTogether
 
 def get_csv_epsilon_value(csv_file_path): 
+    """
+    For a given csv of stars and predictive models, generates epsilon values and saves to csv
+
+    Args:
+        csv_file_path (str): file path to data containing name of stars (KIC) and predictive model strings
+    
+    """
     print("Running")
     try:
         df = pd.read_csv(csv_file_path)
@@ -797,6 +897,21 @@ def get_csv_epsilon_value(csv_file_path):
         return []
 
 def find_valid_segments(all_time, all_flux, dt=1.0, t_step=0.1, expected_cadence_days=1800/86400):
+    """
+    Helper function to devide segments of the light curve for epsilon vale calculations 
+
+    Args:
+        all_time (np.array): time array of light curve
+        all_flux (np.array): flux array of light curve
+        dt (float): size of window
+        t_step (float): step size of window starting and ending points
+        expected_cadence_days: cadence expected 
+
+    Returns:
+        segments (np.array): segment based array of all chunks needed for epsilon calculations
+    
+    
+    """
     segments = []
     i = 0
     N = len(all_time)
@@ -818,6 +933,13 @@ def find_valid_segments(all_time, all_flux, dt=1.0, t_step=0.1, expected_cadence
     return segments
                 
 def seriesofstarsTest(listofstars):
+    """
+    Given a list of stars generate deep predictive models and export MSE to csv
+
+    Args:
+        listofstars (np.array): KIC ID list of stars
+    
+    """
     results = []
     try:
         for star in listofstars:
@@ -847,6 +969,19 @@ def seriesofstarsTest(listofstars):
     print("\nResults saved to KeplerStarsOutput")
 
 def SpectralResiduals(nameOfStar, sine_string): 
+    """
+    Given a star and its predictive model, generates the R2_FFT value between it and its light curve
+
+    Args:
+        nameOfStar (str): name of star desired in KIC
+        
+        sine_string (str): string consisting of full predicitve model as superpositions of sinusodial functions
+    
+    Returns:
+        spec_res (float): spectral residuals between light curve and predictive model
+        R2 (float): Normalized R2_FFT value between light curve and predictive model
+    
+    """
     lc = lk.search_lightcurve(f"KIC {nameOfStar}").download_all().stitch().remove_outliers(sigma = 5.0)
     signal = lc.flux.value
     t = lc.time.value
@@ -899,6 +1034,14 @@ def SpectralResiduals(nameOfStar, sine_string):
     return spec_res, R2
     
 def SpectralResidualsCsvBased(csv_file_path): 
+    """
+    Given csv of names of stars and their corresponding predictive model, generates the R2_FFT value between them and their light curve
+
+    Args:
+        csv_file_path (str): path to csv file input
+    
+    """
+    
     print("Running")
     try:
         df = pd.read_csv(csv_file_path)
@@ -934,6 +1077,10 @@ def SpectralResidualsCsvBased(csv_file_path):
         return []  
 
 def plotMap():
+    """
+    Helper function to plot all stars analyzed using right assension and declination on map
+    
+    """
     pt.style.use(['science', 'no-latex'])
 
     with open(r"C:\Users\ahmed\Downloads\asu.tsv", 'r') as file:
@@ -1016,6 +1163,14 @@ def plotMap():
     pt.show()
 
 def unpopular_clean_tess(csv_path):
+    """
+    Given a csv containing KIC, TIC and predictive models for a series of stars, cleans the corresponding TESS data 
+    and calculates the R2_FFT values. Saves it to an CSV output.
+
+    Args:
+        csv_path (str): path to the csv file as input
+    
+    """
     print("Running")
     #test_list = [271959957, 268160106,159302678, 239311449]
     #test_list = str(test_list)
@@ -1169,6 +1324,14 @@ def unpopular_clean_tess(csv_path):
 
 # only for plotting  
 def unpopular_clean_tess_plotting(csv_path):
+    """
+    Given a csv containing KIC, TIC and predictive models for a series of stars, cleans the corresponding TESS data 
+    and plots the FFT cleaning
+
+    Args:
+        csv_path (str): path to the csv file as input
+    
+    """
     print("Running")
     df = pd.read_csv(csv_path)
 
