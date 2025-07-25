@@ -1,6 +1,6 @@
 # 🌠🔭 Fourier-Based Predictive Modeling of δ Scuti Variable Stars Framework
 
-We assess the predictability of a large dataset of δ scuti variable stars in detail. Few methods currently exist that can reliably determine the stability or predict the luminosity behavior of δ scuti variable stars. To address this, we develop a computational framework to identify δ scuti variable stars whose luminosity behavior can be accurately modeled as superpositions of sinusoidal functions. These predictive models provide a foundation for identifying δ scuti variable stars suitable for use in practical applications such as autonomous deep-space navigation systems for spacecraft, which rely on such stars as navigational aid.This project provides the computational framework for modeling the light curves of **delta scuti variable stars** outlined in the study. 
+We assess the predictability of a large dataset of δ scuti variable stars in detail. Few methods currently exist that can reliably determine the stability or predict the luminosity behavior of δ scuti variable stars. To address this, we develop a computational framework to identify δ scuti variable stars whose luminosity behavior can be accurately modeled as superpositions of sinusoidal functions. These predictive models provide a foundation for identifying δ scuti variable stars suitable for use in practical applications such as autonomous deep-space navigation systems for spacecraft, which rely on such stars as navigational aid. This project provides the computational framework for **modeling the light curves of delta scuti variable stars** outlined in the study. 
 
 
 ---
@@ -8,18 +8,18 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 ## 📚 Package Contents
 
 - ``\
-  This is the **core script** that contains all the **functions and classes** used to model, fit, and analyze Delta Scuti light curves. It includes:
+  This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **delta scuti variable stars**. It includes:
 
   - Fourier decomposition modeling
-  - R² and residual analysis
+  - R_fft² and residual analysis
   - Preprocessing and smoothing routines
   - Plotting utilities for light curves
 
 - ``\
-  Directory containing the **entire set of analyzed observational data**, including:
+  This directory contains the **entire set of analyzed observational data**, including:
 
   - Cleaned light curve datasets
-  - Star metadata (KIC, TIC IDs, pulsation periods, etc.)
+  - Star metadata (KIC IDs, TIC IDs, pulsation modes, magnitude in  etc.)
   - Sample outputs (e.g., fitted parameters and residuals)
 
 - ``\
@@ -33,8 +33,8 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 ## 📞 Points of Contact
 
-- **Lead Developer/PI:** [Your Name or Email]
-- **Institution/Organization:** [e.g., University Name / Department]
+- **Corresponding Author** Ahmed Khan  ahmedk2@illinois.edu
+- **Institution:** Department of Aerospace Engineering, University of Illinois at Urbana-Champaign
 - **Collaborators:** [List collaborators if applicable]
 
 ---
@@ -54,7 +54,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 Make sure the following are installed:
 
 ```bash
-pip install numpy pandas matplotlib scipy
+pip install numpy pandas matplotlib scipy, lightkurve, 
 ```
 
 ### ▶️ Running the Code
@@ -63,18 +63,6 @@ From the root directory:
 
 ```bash
 python final_code_base.py
-```
-
-Or if integrated into a Bazel workflow:
-
-```bash
-bazel run :final_code_base
-```
-
-To run tests (if available):
-
-```bash
-bazel test :test_final_code_base
 ```
 
 ### 📈 Sample Usage
@@ -104,12 +92,12 @@ fit_result.plot()
 
 ---
 
-## 📂 File Summary Table
+## 📂 Summary of Files: 
 
-| File / Folder              | Purpose                        |
+| Files                      | Purpose                        |
 | -------------------------- | ------------------------------ |
-| `final_code_base.py`       | Core modeling logic            |
-| `Master_Data_Sets_FULL/`   | Complete analyzed data archive |
+| `final_code_base.py`       | Core modeling Framework        |
+| `Master_Data_Sets_FULL/`   | Complete Datasets              |
 | `Legacy_supporting_files/` | Non-essential, legacy scripts  |
 
 
