@@ -8,7 +8,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 ## 📚 Package Contents
 
 - ``` bash
-  python final_code_base.py
+  final_code_base.py
   ```
   This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **delta scuti variable stars**. It includes:
 
@@ -17,25 +17,31 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
   - Preprocessing and smoothing routines
   - Plotting utilities for light curves
 
-- ``\
+- ``` bash
+  Legacy_supporting_files
+  ```
   This directory contains the **entire set of analyzed observational data**, including:
 
   - Cleaned light curve datasets
   - Star metadata (KIC IDs, TIC IDs, pulsation modes, magnitude in  etc.)
   - Sample outputs (e.g., fitted parameters and residuals)
 
-- ``\
-  Contains **archived and non-essential scripts**, such as:
+- ``` bash
+  Master_Data_Sets_FULL
+  ```
+  Contains **archived and non-essential scripts**, including:
 
   - Initial versions of the modeling code
-  - Alternate modeling approaches (e.g., spline fits, Lomb-Scargle periodograms)
-  - Visualization tools used during early development
+  - Alternate modeling approaches
+  - Additional plotting and visualization tools
+
+  ⚠️ **Files within '''Master_Data_Sets_FULL''' may not be stable**
 
 ---
 
 ## 📧 Points of Contact
 
-- **Corresponding Author** Ahmed Khan  ahmedk2@illinois.edu
+- **Corresponding Author:** Ahmed Khan  ahmedk2@illinois.edu
 - **Institution:** Department of Aerospace Engineering, University of Illinois at Urbana-Champaign
 - **Collaborators:** Tiger Hou  linyhi2@illinois.edu, Seigfried Eggl  eggl@illinois.edu
 
@@ -44,7 +50,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 ## 💻 Usage
 
 - ✅ **Actively Maintained** – The package is current and stable for general use.
-- 🚫  **Not a Standalone Package** – To run the scripts, clone the repository and run them directly with Python.
+- 🚫  **Not a Standalone Package** – To run the scripts, clone the repository and run them directly with Python. We reccommend using an Anaconda enviroment. 
 - ⚠️ **Requires Manual Data Handling** – Inputs will need to be directly inputed by the user.
 
 ---
@@ -56,7 +62,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 Make sure the following are installed:
 
 ```bash
-pip install numpy pandas matplotlib scipy, lightkurve, 
+pip install numpy pandas matplotlib scipy lightkurve scipy astropy unpopular scienceplots astroquery 
 ```
 
 ### ▶️ Running the Code
