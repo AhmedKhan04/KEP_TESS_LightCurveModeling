@@ -106,7 +106,7 @@ plotsidebyside_deep(name_star)
 # Extract epsilon values
 epsilon_array = get_epsilon_value(name_star, predictive_model_string)
 
-# Produce R^2_FFT and spectral residual values between light curve and model
+# Produce the R^2_FFT and spectral residual value between the light curve and the predictive model
 
 spectral_residuals, R2_FFT = SpectralResiduals(name_star, predictive_model_string)
 
