@@ -35,7 +35,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
   - Alternate modeling approaches
   - Additional plotting and visualization tools
 
-  ⚠️ **Files within** ''' bash Master_Data_Sets_FULL''' **may not be stable**
+  ⚠️ **Files within** 'Master_Data_Sets_FULL' **may not be stable**
 
 ---
 
