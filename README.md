@@ -50,7 +50,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 ## 💻 Usage
 
 - ✅ **Actively Maintained** – The package is current and stable for general use.
-- 🚫  **Not a Standalone Package** – To run the scripts, clone the repository and run them directly within Python. We reccommend using an Anaconda environment. 
+- 🚫  **Not a Standalone Package** – To run the scripts, clone the repository and run them directly within Python. We recommend using an Anaconda environment. 
 - ⚠️ **Requires Manual Data Handling** – Inputs will need to be directly inputed by the user.
 
 ---
