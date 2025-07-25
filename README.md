@@ -1,6 +1,7 @@
-# 📦 Delta Scuti Light Curve Modeling Framework
+# 🌠🔭 Fourier-Based Predictive Modeling of δ Scuti Variable Stars Framework
 
-This project provides a computational framework for modeling the light curves of **Delta Scuti variable stars**. These stars exhibit periodic brightness variations due to radial and non-radial pulsations, and our tools are designed to analyze and fit these variations based on observational data.
+We assess the predictability of a large dataset of δ scuti variable stars in detail. Few methods currently exist that can reliably determine the stability or predict the luminosity behavior of δ scuti variable stars. To address this, we develop a computational framework to identify δ scuti variable stars whose luminosity behavior can be accurately modeled as superpositions of sinusoidal functions. These predictive models provide a foundation for identifying δ scuti variable stars suitable for use in practical applications such as autonomous deep-space navigation systems for spacecraft, which rely on such stars as navigational aid.This project provides the computational framework for modeling the light curves of **delta scuti variable stars** outlined in the study. 
+
 
 ---
 
