@@ -96,7 +96,7 @@ fit_result.plot()
 ## 📜 Documentation & Links
 
 - [Gerald Handler; Delta Scuti Variables. AIP Conf. Proc. 16 September 2009; 1170 (1): 403–409.] (https://doi.org/10.1063/1.3246528)
-- [Position and Time Determination without Prior State Knowledge via Onboard Optical Observations of Delta Scuti Variable Stars] (https://doi.org/10.48550/arXiv.2406.17609)
+- [Hou, L., Bansal, I., Davis, C., & Eggl, S. (2025). Position and Time Determination without Prior State Knowledge via Onboard Optical Observations of Delta Scuti Variable Stars. arXiv] (https://doi.org/10.48550/arXiv.2406.17609)
 
 ---
 
