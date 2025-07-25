@@ -69,7 +69,7 @@ pip install numpy pandas matplotlib scipy lightkurve scipy astropy unpopular sci
 
 From the root directory:
 
-**run:**
+**Run:**
 ```bash
 python final_code_base.py
 ```
