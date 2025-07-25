@@ -3,10 +3,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-kic_values = np.loadtxt(r'C:\Users\ahmed\Downloads\vizier_KIC_cross.txt', dtype=str)
+kic_values = np.loadtxt(r'vizier_KIC_cross.txt', dtype=str)
 print(kic_values)
 kic_ids = kic_values
-# List of provided KIC IDs
+
 """
 kic_ids = [
     6231538, 6606229, 6963490, 7300184, 7900367, 7915515, 9851822, 10350769, 10355055, 10415087,
@@ -22,17 +22,16 @@ kic_ids = [
     9364179, 9594857, 9614153, 9700322, 9706609, 9724292, 9942562, 10451090, 11143576, 11704101, 11852985
 ]
 """
-# Setup Vizier query
-Vizier.ROW_LIMIT = -1  # No row limit
-catalog = "V/133/kic"  # KIC catalog in Vizier
 
-# Query the catalog by KIC ID
+Vizier.ROW_LIMIT = -1  
+catalog = "V/133/kic"  
+
 result = Vizier.query_constraints(catalog=catalog, KICID=",".join(map(str, kic_ids)))
 
-# Extract the table
+
 table = result[0].to_pandas()
 
-# Clean dataframe
+
 df = table[['KIC', 'RAJ2000', 'DEJ2000']]
 df.columns = ['KIC', 'RA', 'Dec']
 

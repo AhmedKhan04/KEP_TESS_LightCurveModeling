@@ -69,13 +69,13 @@ def identifyPeaks(nameOfStar, lowerscalar = 0.1):
      #   print(i.value)
     y = pg.power[peaks]
     filtered_peaks = []
-    # Iterate through the peaks and check for closeness
+    
     for i in range(len(x)):
         if len(filtered_peaks) == 0:
             if(x[i].value >= 1):
                 filtered_peaks.append(peaks[i])
         else:
-            # current peak is close to the last added peak?
+            
             if np.abs(x[i].value - pg.frequency[filtered_peaks[-1]].value) <= 0.3:
                 if(y[i].value > pg.power[filtered_peaks[-1]].value):
                     filtered_peaks[-1]= peaks[i]
@@ -103,13 +103,13 @@ def identifyPeaksPowerComp(nameOfStar):
      #   print(i.value)
     y = pg.power[peaks]
     filtered_peaks = []
-    # Iterate through the peaks and check for closeness
+   
     for i in range(len(x)):
         if len(filtered_peaks) == 0:
             if(x[i].value >= 1):
                 filtered_peaks.append(peaks[i])
         else:
-            # current peak is close to the last added peak?
+            
             if np.abs(x[i].value - pg.frequency[filtered_peaks[-1]].value) <= 0.3:
                 if(y[i].value > pg.power[filtered_peaks[-1]].value):
                     filtered_peaks[-1]= peaks[i]
@@ -283,7 +283,7 @@ def guessActual(a):
         # Adding bounds: to force some values of amplitude
         bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
         #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-        #WORK AND FIX THIS PART
+        
 
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
@@ -334,7 +334,7 @@ def guessActual_refined(a):
         amplitude_scale = 0.5
         bounds = ([amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
         #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-        #Neutral 
+         
 
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
@@ -351,7 +351,7 @@ def guessActual_refined(a):
             low_amplitude_guess_scale = low_amplitude_scale * 1.1
             high_amplitude_guess_scale = high_amplitude_scale * 1.1
             
-            # Prepare initial guesses and bounds
+            
             ig_low = [low_amplitude_guess_scale * amplitude_guess, phase_guess, frequency_guess, offset_guess]
             ig_high = [high_amplitude_guess_scale * amplitude_guess, phase_guess, frequency_guess, offset_guess]
             
@@ -360,7 +360,7 @@ def guessActual_refined(a):
             bounds_high = ([high_amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], 
                         [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.percentile(flux,95)])
             
-            # Try all three fits (low, current, high)
+           
             try:
                 params_low, _ = curve_fit(sine_model, time, flux, p0=ig_low, bounds=bounds_low, method='dogbox')
                 fit_low = sine_model(time, *params_low)
@@ -377,21 +377,21 @@ def guessActual_refined(a):
             
             current_MSE = bestmean
             
-            # Compare all three options
+            
             options = [
                 ('low', fit_low_MSE, params_low, low_amplitude_scale),
                 ('current', current_MSE, params, amplitude_scale),
                 ('high', fit_high_MSE, params_high, high_amplitude_scale)
             ]
             
-            # Find the best option
+            
             best_option = min(options, key=lambda x: x[1])
             
             if best_option[0] == 'current':
                 bestFitAchieved = True
                 print("-1")
             else:
-                # Update to the better option
+                
                 bestmean = best_option[1]
                 params = best_option[2]
                 amplitude_scale = best_option[3]
@@ -489,7 +489,7 @@ def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_resu
 
         bounds = ([amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess_upper, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
         #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-        #Neutral 
+        
 
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
@@ -1044,18 +1044,17 @@ def get_epsilon_value(star_name, sine_string):
     OFFSET = 2454833
     expected_cadence = 1800  # seconds
 
-    # Your model definition
+    
     def create_model_function(sine_string):
         """Create a callable function from the sine string"""
         def model(t, dt, *params):
-            # dt is the time offset parameter we're fitting
-            # params could be used if you want to make amplitudes/frequencies variable
+
             shifted_t = t + dt + (OFFSET-2457000)
             print(sine_string)
             return eval(sine_string.replace('t', 'shifted_t'))
         return model
 
-    # Define your model
+    
     #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
     profile_func = create_model_function(sine_string)
 
@@ -1065,8 +1064,8 @@ def get_epsilon_value(star_name, sine_string):
 
     true_time = []
     est_time = []
-    t_step = 0.1  # resolution of the Allan variance plot
-    dt = 1.0  # days, duration of measurement for curve fit
+    t_step = 0.1  
+    dt = 1.0  
     t_prev = -np.inf
 
     for t in all_time:
@@ -1075,13 +1074,13 @@ def get_epsilon_value(star_name, sine_string):
         else:
             continue
 
-        # grab a segment of actual light curve data
+        
         start_bxjd = t_prev
         mask = (all_time >= start_bxjd) & (all_time <= (start_bxjd + dt))
         time = all_time[mask]
         flux = all_flux[mask]
 
-        # check data quality
+       
         if len(time) == 0:
             continue
         if abs(time[-1] - start_bxjd - dt) > expected_cadence/86400:
@@ -1093,7 +1092,7 @@ def get_epsilon_value(star_name, sine_string):
 
         t_zeroed = time - time[0]
         
-        # Initial guesses near the start time
+        
         t0_list = np.arange(-4,4) * 0.1 + time[0] + np.random.normal(0.01, 0.05)
         t_est_list = []
         
@@ -1116,11 +1115,11 @@ def get_epsilon_value(star_name, sine_string):
             true_time.append(time[0])
             est_time.append(t_est)
 
-    # Rest of your plotting code remains the same...
+   
     true_time = np.array(true_time)
     est_time = np.array(est_time)
 
-    # detect gaps and create segments
+    
     time_diff = np.diff(true_time)
     mask = time_diff > 3000
     gap_indices = np.where(mask)[0]
@@ -1153,250 +1152,6 @@ def get_epsilon_value(star_name, sine_string):
     fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
     """
     return true_time-est_time
-
-
-
-
-# Example usage
-# signal = np.array([...])
-# model = np.array([...])
-# residual, R2 = spectral_goodness_of_fit(signal, model)
-# print(f"Spectral Residual: {residual}")
-# print(f"R²_FFT: {R2}")
-
-
-    #fig_oc.
-    pt.legend()
-
-    pt.show()
-
-    """
-    expected_cadence = 1800 # seconds
-    dt = 10  # days, duration of each segment for fitting
-    t_step = 1  # days, step size for segments
-
-    # Prepare cleaned time and flux arrays
-    mask = np.isfinite(lc.flux.value)
-    all_time = lc.time.value[mask]
-    all_flux = lc.flux.value[mask]
-    print(len(all_time))
-    # Your precomputed model arrays (example)
-    model_time = np.linspace(0, dt, len(model_profile))
-    model_flux = model_profile
-
-    model_interp = interp1d(model_time, model_flux, bounds_error=False, fill_value='extrapolate')
-
-    true_time = []
-    est_time = []
-
-    # Create regularly spaced segment start times
-    t_start = all_time[0]
-    t_end = all_time[-1]
-    t_grid = np.arange(t_start, t_end, t_step)
-
-    for t0 in t_grid:
-        # Select data in [t0, t0+dt]
-        mask = (all_time >= t0) & (all_time <= t0 + dt)
-        time = all_time[mask]
-        flux = all_flux[mask]
-        print(t0)
-
-        # Skip if no data or gaps too large
-        if len(time) == 0:
-            continue
-        if abs(time[-1] - t0 - dt) > expected_cadence / 86400:
-            continue
-        if abs(time[0] - t0) > expected_cadence / 86400:
-            continue
-        if np.any(np.diff(time) > expected_cadence / 86400):
-            continue
-
-        # Zero time for fitting
-        t_zeroed = time - time[0]
-
-        # Initial guesses for dt shift - tweak if needed
-        dt_guesses = np.linspace(-0.5, 0.5, 10)
-
-        t_est_list = []
-        for dt_guess in dt_guesses:
-            try:
-                popt, _ = curve_fit(
-                    lambda x, dt_shift: model_interp(x + dt_shift),
-                    xdata=t_zeroed,
-                    ydata=flux,
-                    p0=[dt_guess],
-                    xtol=1e-12,
-                    maxfev=1000
-                )
-                # Convert estimated dt shift back to absolute time
-                t_est_list.append(time[0] + popt[0])
-            except Exception:
-                pass
-
-        if len(t_est_list) == 0:
-            continue
-
-        # Choose estimate closest to start time of segment
-        t_est_arr = np.array(t_est_list)
-        best_t_est = t_est_arr[np.argmin(np.abs(t_est_arr - time[0]))]
-
-        true_time.append(time[0])
-        est_time.append(best_t_est)
-
-    true_time = np.array(true_time)
-    est_time = np.array(est_time)
-
-    # Find gaps to split into contiguous segments for plotting
-    time_diff = np.diff(true_time)
-    gap_mask = time_diff > 3000
-    gap_indices = np.where(gap_mask)[0]
-    segments = np.split(true_time, gap_indices + 1)
-
-    # Compute t_shift for xlabel
-    tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5) / 100) * 100)
-
-    # Plotting
-    margin = 0.5  # days
-    fig_oc, axs = pt.subplots(
-        1,
-        len(segments),
-        figsize=(8, 3),
-        sharey=True,
-        gridspec_kw={'wspace': 0, 'hspace': 0},
-        width_ratios=[seg[-1] - seg[0] + margin * 2 for seg in segments]
-    )
-
-    if not isinstance(axs, np.ndarray):
-        axs = [axs]
-
-    for ii, ax in enumerate(axs):
-        ax.scatter(
-            true_time - tshift + OFFSET - 2400000.5,
-            true_time - est_time,
-            c='k',
-            s=1
-        )
-        if ii == 0:
-            ax.set_ylabel('O-C (days)', fontsize=11)
-        ax.set_xlim(
-            segments[ii][0] - tshift + OFFSET - 2400000.5 - margin,
-            segments[ii][-1] - tshift + OFFSET - 2400000.5 + margin
-        )
-
-    fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
-    pt.show()
-    """
-
-    """
-    # Interpolate model profile
-    model_phase = np.linspace(0, 1, len(model_profile), endpoint=False)
-    interp_model = interp1d(model_phase, model_profile, kind='linear', bounds_error=False, fill_value='extrapolate')
-
-        # Prep light curve
-    # === SETUP ===
-    OFFSET = 2457000
-    expected_cadence = 60  # seconds
-    expected_cadence_days = expected_cadence / 86400
-    t_step = 1    # days between segments
-    dt = 1.0       # duration of each fit segment
-    margin = 0.5     # for plot x-limits
-
-    # === PREP MODEL ===
-    model_phase = np.linspace(0, 1, len(model_profile), endpoint=False)
-    interp_model = interp1d(model_phase, model_profile, kind='linear', bounds_error=False, fill_value='extrapolate')
-
-    # === PREP LIGHT CURVE ===
-    mask = np.isfinite(lc.flux.value.unmasked)
-    all_flux = lc.flux.value[mask]
-    all_time = lc.time.value[mask]
-
-    # === FIND VALID SEGMENTS ===
-    def find_valid_segments(all_time, all_flux, dt=1.0, t_step=0.1, expected_cadence_days=1800/86400):
-        segments = []
-        i = 0
-        N = len(all_time)
-        while i < N:
-            print(i)
-            t0 = all_time[i]
-            t1 = t0 + dt
-            j = np.searchsorted(all_time, t1)
-
-            time_chunk = all_time[i:j]
-            flux_chunk = all_flux[i:j]
-
-            if len(time_chunk) >= 10:
-                diffs = np.diff(time_chunk)
-                if np.all(diffs < 1.5 * expected_cadence_days):  # allow small gaps
-                    segments.append((time_chunk, flux_chunk))
-
-            i = np.searchsorted(all_time, t0 + t_step)
-
-        return segments
-
-    valid_segments = find_valid_segments(all_time, all_flux, dt, t_step, expected_cadence_days)
-    print("hellow")
-    # === O–C CALCULATION ===
-    period_grid = np.linspace(0.05, 0.2, 30)      # trial periods
-    shift_grid = np.linspace(-0.2, 0.2, 60)       # trial phase shifts
-    shift_grid_2D, period_grid_2D = np.meshgrid(shift_grid, period_grid)
-    shift_flat = shift_grid_2D.ravel()
-    period_flat = period_grid_2D.ravel()
-
-    true_time = []
-    est_time = []
-
-    for time, flux in valid_segments:
-        t0 = time[0]
-        t_zeroed = time - t0
-        N = len(t_zeroed)
-
-        # Broadcast grid search
-        time_matrix = t_zeroed[:, None] + shift_flat[None, :]
-        phase_matrix = (time_matrix / period_flat[None, :]) % 1
-        model_matrix = interp_model(phase_matrix)
-        residuals = flux[:, None] - model_matrix
-        mse = np.mean(residuals ** 2, axis=0)
-        best_idx = np.argmin(mse)
-
-        best_shift = shift_flat[best_idx]
-        best_period = period_flat[best_idx]
-        print(time)
-        true_time.append(t0)
-        est_time.append(t0 + best_shift)
-
-    true_time = np.array(true_time)
-    est_time = np.array(est_time)
-
-    # === SEGMENT SPLITTING FOR PLOTTING ===
-    time_diff = np.diff(true_time)
-    gap_indices = np.where(time_diff > 3000 / 86400)[0]
-    segments = np.split(true_time, gap_indices + 1)
-
-    tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5) / 100) * 100)
-
-    # === PLOT O–C DIAGRAM ===
-    fig_oc, axs = pt.subplots(1, len(segments), figsize=(8, 3), sharey=True,
-                            gridspec_kw={'wspace': 0, 'hspace': 0},
-                            width_ratios=[seg[-1] - seg[0] + margin * 2 for seg in segments])
-
-    if not isinstance(axs, np.ndarray):
-        axs = [axs]
-
-    for ii, ax in enumerate(axs):
-        seg_mask = (true_time >= segments[ii][0]) & (true_time <= segments[ii][-1])
-        oc_vals = true_time[seg_mask] - est_time[seg_mask]
-        ax.scatter(true_time[seg_mask] - tshift + OFFSET - 2400000.5, oc_vals, c='k', s=1)
-        if ii == 0:
-            ax.set_ylabel('O-C (days)', fontsize=11)
-        ax.set_xlim(segments[ii][0] - tshift + OFFSET - 2400000.5 - margin,
-                    segments[ii][-1] - tshift + OFFSET - 2400000.5 + margin)
-
-    fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
-    pt.show()
-
-
-    """
-    return tshift
 
 
 def get_csv_epsilon_value(csv_file_path): 
@@ -1549,8 +1304,8 @@ def CompareTelescopes(nameOfStar, sine_string):
         - spectral_residual: float
         - R2_FFT: float
         """
-        # Compute the Fourier Transforms
-        n = 15  # the larger n is, the smoother curve will be
+      
+        n = 15 
         b = [1.0 / n] * n
         a = 1
         signal = lfilter(b, a, signal)
@@ -1558,10 +1313,9 @@ def CompareTelescopes(nameOfStar, sine_string):
         S_f = np.fft.fft(signal)
         M_f = np.fft.fft(model)
         
-        # Compute Spectral Residual
+       
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
-        
-        # Compute normalized R^2_FFT
+       
         S_bar = np.mean(S_f)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)
@@ -1608,14 +1362,14 @@ def SpectralResiduals(nameOfStar, sine_string):
         - spectral_residual: float
         - R2_FFT: float
         """
-        # Compute the Fourier Transforms
+      
         S_f = np.fft.fft(signal)
         M_f = np.fft.fft(model)
         
-        # Compute Spectral Residual
+       
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
         
-        # Compute normalized R^2_FFT
+       
         S_bar = np.mean(S_f)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)
@@ -1727,17 +1481,17 @@ def plotMap():
     for line in lines:
         line = line.strip()
         
-        # Skip comments and empty lines
+       
         if line.startswith('#') or not line:
             in_data_section = False
             continue
         
-        # Check for the header line that precedes data
+        
         if line.startswith('_RAJ2000;_DEJ2000;KIC;RAJ2000;DEJ2000'):
             in_data_section = True
             continue
         
-        # Skip the units line (deg;deg; ;deg;deg)
+       
         if line.startswith('deg;deg; ;deg;deg'):
             continue
         
@@ -1867,7 +1621,7 @@ def plotMap():
     ax = pt.subplot(111, projection="aitoff")
     ax.scatter(ra_rad, de_rad, s=1)
 
-    # Set manual ticks
+    
     xticks_deg = np.arange(-180, 181, 60)
     yticks_deg = np.arange(-90, 91, 30)
     xtick_labels = [f"{int(t)}" if abs(t) != 180 else '' for t in xticks_deg]
@@ -1912,7 +1666,7 @@ def unpopular_clean_tess(csv_path):
         - spectral_residual: float
         - R2_FFT: float
         """
-        # Compute the Fourier Transforms
+        
         #n = 5  # the larger n is, the smoother curve will be
         #b = [1.0 / n] * n
         #a = 1
@@ -1959,10 +1713,9 @@ def unpopular_clean_tess(csv_path):
         #pt.show()
         pt.savefig(fr"C:\Users\ahmed\Downloads\higher try\pic_TIC_{TIC_list[i]}.png")
         pt.close()
-        # Compute Spectral Residual
+        
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
        
-        # Compute normalized R^2_FFT
         S_bar = np.mean(signal)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)
@@ -2067,7 +1820,7 @@ def tess_clean_MAST(csv_path):
         - spectral_residual: float
         - R2_FFT: float
         """
-        # Compute the Fourier Transforms
+       
         #n = 15  # the larger n is, the smoother curve will be
         #b = [1.0 / n] * n
         #a = 1
@@ -2076,10 +1829,10 @@ def tess_clean_MAST(csv_path):
         S_f = np.fft.fft(signal)
         M_f = np.fft.fft(model)
         
-        # Compute Spectral Residual
+        
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
         
-        # Compute normalized R^2_FFT
+       
         S_bar = np.mean(S_f)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)
@@ -2185,10 +1938,10 @@ def unpopular_clean_tess_plotting(csv_path):
         #pt.show()
         #pt.savefig(fr"C:\Users\ahmed\Downloads\higher try\pic_TIC_{TIC_list[i]}.png")
         pt.show()
-        # Compute Spectral Residual
+        
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
        
-        # Compute normalized R^2_FFT
+        
         S_bar = np.mean(signal)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)

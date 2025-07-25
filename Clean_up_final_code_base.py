@@ -57,7 +57,7 @@ def sine_model(t, amplitude, phase, frequency, offset):
     sine_curve = amplitude * np.sin(2 * np.pi * frequency * t + phase) + offset
     return sine_curve
 
-def identifyPeaks(nameOfStar, lowerscalar = 0.1):
+def identifyPeaks_dynamic(nameOfStar, lowerscalar = 0.1):
     """
     Helper function to dynamically identify peak frequencies of FFT.
 
@@ -95,7 +95,7 @@ def identifyPeaks(nameOfStar, lowerscalar = 0.1):
     powers = pg.power[filtered_peaks]
     return(freqs, lightc, powers)
 
-def identifyPeaksPowerComp(nameOfStar):
+def identifyPeaks_non_dynamic(nameOfStar):
     """
     Helper function to non-dynamically efficiently identify peak frequencies of FFT.
 
@@ -128,7 +128,7 @@ def identifyPeaksPowerComp(nameOfStar):
     powers = pg.power[filtered_peaks]
     return(powers, ltcurves)
 
-def guessHelper(nameOfStar,bounds1,search_result, frequencyfitted):
+def guess_swift(nameOfStar,bounds1,search_result, frequencyfitted):
     """
     Generates a set of sinusoidal components for the predictive model swiftly
 
@@ -145,14 +145,12 @@ def guessHelper(nameOfStar,bounds1,search_result, frequencyfitted):
         list_comp (np.array): list of sinusodial models for components of the predictive model
     
     """
-    #frequencyfitted, lc = identifyPeaks(a)
+
     lc = search_result
-    #lc.plot()
-    #pt.show()
     b = 0 
     list_comp = []
     while b < len(frequencyfitted):
-        #Foldedlc = lc.fold(period = (1 / frequencyfitted[b].value))
+        
         time = lc.time.value
         flux =  lc.flux.value
         vi = np.isfinite(time) & np.isfinite(flux)
@@ -180,11 +178,10 @@ def guessHelper(nameOfStar,bounds1,search_result, frequencyfitted):
         fit_c = sine_model(time, *params)  
         list_comp.append(fit_c)
         b = b + 1
-        #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
-    #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
+
     return list_comp
 
-def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_result, powers):
+def guess_deep(a, scalar, frequencyfitted, search_result, powers):
     """
     Generates a set of sinusoidal components for the predictive model deeply
 
@@ -208,8 +205,6 @@ def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_resu
     
     """
     lc = search_result
-    #lc.plot()
-    #pt.show()
     b = 0 
     list_comp = []
     params_list = []
@@ -229,7 +224,6 @@ def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_resu
         amplitude_guess = flux_range
         amplitude_guess_upper = amplitude_guess
         phase_guess = 0
-        #Foldedlc = lc.fold(period = (1 / frequencyfitted[b].value))
  
         frequency_guess = frequencyfitted[b].value
         amplitude_guess_scale =  scalar * 1.5
@@ -241,31 +235,20 @@ def guessActual_refined_second_iteration(a, scalar, frequencyfitted, search_resu
 
         bounds = ([amplitude_scale*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess_upper, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
         #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-        #Neutral 
-
+  
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
         #ig = [(np.max(flux) - np.min(flux))/2, 0, frequencyfitted[b].value, np.mean(flux)]
         params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox', maxfev=999999999)
         amplitude, phase, frequency, offset = params
         fit_c = sine_model(time, *params)
-        
-        #ig_refined = [amplitude + 0.00001, phase, frequency, offset]
-        #amplitude, phase, frequency, offset = params
-        #residuals = flux - (fit_c)
-        #meanSquare = np.sum((residuals)**2)/len(flux)
-        #bounds_refined =  ([amplitude, -2*np.pi, frequency * 0.8, np.percentile(flux,5)], [amplitude * 1.5, 2*np.pi, frequency * 1.2,  np.percentile(flux,95)])
-        #params_refined, _ = curve_fit(sine_model, time, flux, p0=ig_refined, bounds=bounds_refined, method='dogbox')
-        #amplitude, phase, frequency, offset = params
-        #fit_refined = sine_model(time, *params_refined)
+
         list_comp.append(fit_c)
 
         amplitude, phase, frequency, offset = params
         params_list.append((amplitude, phase, frequency, offset)) 
         b += 1
         print("passed")
-        #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
-    #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
     return params_list, lc, list_comp
 
 def align_arrays(time, flux):
@@ -314,8 +297,8 @@ def getMeanSquaredResidual(nameOfStar, search_result, frequency, powerofpeaks_ar
         bestmeanSquare = 100000
         bestBound = 0
         lc = search_result
-        for bounds1 in range(54,56): #######
-            listofsines = guessHelper(nameOfStar,bounds1, search_result, frequency)
+        for bounds1 in range(54,56): 
+            listofsines = guess_swift(nameOfStar,bounds1, search_result, frequency)
             addedTogether = 0
             time = lc.time.value
             flux = lc.flux.value
@@ -328,7 +311,7 @@ def getMeanSquaredResidual(nameOfStar, search_result, frequency, powerofpeaks_ar
             while (p < len(powerOfPeaks)):
                 sinInterpolated = interpolate(time, listofsines[p], time)
                 weight = powerOfPeaks[p]
-                #print(weight) 
+                
                 total_weight += weight
                 addedTogether += (weight * sinInterpolated)
                 p += 1
@@ -338,12 +321,6 @@ def getMeanSquaredResidual(nameOfStar, search_result, frequency, powerofpeaks_ar
                 if(meanSquare < bestmeanSquare):
                     bestmeanSquare = meanSquare
                     bestBound = bounds1
-                    #print(meanSquare)
-                    #print(bounds1/100)
-        #al = len(flux)  
-        #p = 4 * len(listofsines)  
-        #reduced_chi_squared = chi_squared / (al - p)
-        #return reduced_chi_squared
         print(bestmeanSquare)
         return bestmeanSquare, bestBound/100
 
@@ -364,7 +341,7 @@ def getResiduals(fit, flux):
     meanSquare = np.sum((residuals)**2)/len(flux)
     return meanSquare
 
-def getCompositeSine2(nameOfStar):
+def getCompositeSine2_swift(nameOfStar):
         """
         Swiftly generates the predictive model for star
 
@@ -380,10 +357,10 @@ def getCompositeSine2(nameOfStar):
         
         
         """
-        powerOfPeaks, _ = identifyPeaksPowerComp(nameOfStar)
+        powerOfPeaks, _ = identifyPeaks_non_dynamic(nameOfStar)
         print(len(powerOfPeaks))
         powerOfPeaks = powerOfPeaks.value
-        listofsines, lc = guessActual(nameOfStar)
+        listofsines, lc = guess_baseline(nameOfStar)
         addedTogether = 0
         time = lc.time.value
         flux = lc.flux.value
@@ -399,16 +376,15 @@ def getCompositeSine2(nameOfStar):
             amplitude = amplitude * (weight/total_weight)
             offset = offset * (weight/total_weight)
             addedTogether += (weight/total_weight) * sinInterpolated
-            #addedTogether += sinInterpolated
+
             sine_print_terms.append(f"{amplitude:.4f} * sin(2π * {frequency:.4f} * t + {phase:.4f}) + {offset:.4f}")
             p += 1
-        #addedTogether  = addedTogether/total_weight
         print(f"Composite Sine Function for {nameOfStar}:")
         print("f(t) = " + " + ".join(sine_print_terms))
         print(total_weight)
         return addedTogether, lc     
 
-def getCompositeSine2_second_test(nameOfStar):
+def getCompositeSine2_deep(nameOfStar):
         """
         Deeply generates the predictive model for star
 
@@ -425,14 +401,14 @@ def getCompositeSine2_second_test(nameOfStar):
             composite_string: string of full predictive model as superpositions of sinusoidal functions
         
         """
-        powerOfPeaks, _ = identifyPeaksPowerComp(nameOfStar)
+        powerOfPeaks, _ = identifyPeaks_non_dynamic(nameOfStar)
         if(powerOfPeaks == -1):
             return [-10], 0
         print(len(powerOfPeaks))
         powerOfPeaks = powerOfPeaks.value
-        frequencyfitted2, search_result2, powers2 = identifyPeaks(nameOfStar)
+        frequencyfitted2, search_result2, powers2 = identifyPeaks_dynamic(nameOfStar)
         amplitude_scale = 0.5
-        listofsines, lc, _ = guessActual_refined_second_iteration(nameOfStar, amplitude_scale, frequencyfitted2, search_result2, powers2)
+        listofsines, lc, _ = guess_deep(nameOfStar, amplitude_scale, frequencyfitted2, search_result2, powers2)
         if(listofsines == [0]):
             return [-10],[0],"0"
         listofindexs =[]
@@ -460,8 +436,8 @@ def getCompositeSine2_second_test(nameOfStar):
             low_amplitude_scale = amplitude_scale*  0.9
             high_amplitude_scale =  amplitude_scale*  1.1
             
-            lower, _,fits_low = guessActual_refined_second_iteration(nameOfStar, low_amplitude_scale, frequencyfitted2, search_result2, powers2)
-            upper, _, fits_high = guessActual_refined_second_iteration(nameOfStar, high_amplitude_scale, frequencyfitted2, search_result2, powers2)
+            lower, _,fits_low = guess_deep(nameOfStar, low_amplitude_scale, frequencyfitted2, search_result2, powers2)
+            upper, _, fits_high = guess_deep(nameOfStar, high_amplitude_scale, frequencyfitted2, search_result2, powers2)
             lowertot = 0
             uppertot = 0 
             countinner = 0
@@ -513,10 +489,9 @@ def getCompositeSine2_second_test(nameOfStar):
             amplitude = amplitude * (weight/total_weight)
             offset = offset * (weight/total_weight)
             newaddedtogether += (weight/total_weight) * sinInterpolated
-            #addedTogether += sinInterpolated
+
             sine_print_terms.append(f"{amplitude:.4f} * sin(2π * {frequency:.4f} * t + {phase:.4f}) + {offset:.4f}")
             count += 1
-        #addedTogether  = addedTogether/total_weight
         composite_string  = "f(t) = " + " + ".join(sine_print_terms)
         print(f"Composite Sine Function for {nameOfStar}:")
         print(composite_string)
@@ -524,7 +499,7 @@ def getCompositeSine2_second_test(nameOfStar):
         print(listofindexs)
         return newaddedtogether, lc, composite_string    
 
-def plotsidebysideactual_manual(nameOfStar):
+def plotsidebyside_swift(nameOfStar):
     """
     Swiftly generates model and plots light curve, predictive model and residuals
     
@@ -532,7 +507,7 @@ def plotsidebysideactual_manual(nameOfStar):
         nameOfStar (str): KIC code to search for.
     
     """
-    function, lc = getCompositeSine2(nameOfStar)
+    function, lc = getCompositeSine2_swift(nameOfStar)
     flux = lc.flux.value
     print(flux)
     print(function)
@@ -543,7 +518,6 @@ def plotsidebysideactual_manual(nameOfStar):
     function = function[:min_length]
     residuals = flux - function
     print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
-    #a = 0.00219*np.sin(2*np.pi*10.33759*time+-0.21704)+ 0.54456 + 0.00183*np.sin(2*np.pi*12.47142*time+-6.28319) + 0.45546
     print(residuals)
     pt.plot(time, residuals, 'o-', color='blue', label='O-C (Observed - Calculated)')
     pt.plot(time, flux, 'o-', color='red', label='Light Curve')
@@ -557,12 +531,9 @@ def plotsidebysideactual_manual(nameOfStar):
     pt.grid()
     pt.tight_layout()
     pt.show()
-    #pt.plot(flux, 'b')
-    #pt.plot(function, 'r')
-    #pt.plot(residuals, 'g')
-    #pt.show()
 
-def plotsidebysideactual(nameOfStar):
+
+def plotsidebyside_deep(nameOfStar):
     """
     Deeply generates model and plots light curve, predictive model and residuals
     
@@ -570,7 +541,7 @@ def plotsidebysideactual(nameOfStar):
         nameOfStar (str): KIC code to search for.
     
     """
-    function, lc, _ = getCompositeSine2_second_test(nameOfStar)
+    function, lc, _ = getCompositeSine2_deep(nameOfStar)
     flux = lc.flux.value
     print(flux)
     print(function)
@@ -581,7 +552,6 @@ def plotsidebysideactual(nameOfStar):
     function = function[:min_length]
     residuals = flux - function
     print(f"MSE: {np.sum((residuals)**2)/len(flux)}")
-    #a = 0.00219*np.sin(2*np.pi*10.33759*time+-0.21704)+ 0.54456 + 0.00183*np.sin(2*np.pi*12.47142*time+-6.28319) + 0.45546
     print(residuals)
     pt.plot(time, residuals, 'o-', color='blue', label=' Residuals (Observed - Calculated)')
     pt.plot(time, flux, 'o-', color='red', label='Light Curve')
@@ -595,10 +565,7 @@ def plotsidebysideactual(nameOfStar):
     pt.grid()
     pt.tight_layout()
     pt.show()
-    #pt.plot(flux, 'b')
-    #pt.plot(function, 'r')
-    #pt.plot(residuals, 'g')
-    #pt.show()
+
 
 def interpolate(time, flux, target_time):
     """
@@ -635,30 +602,24 @@ def get_epsilon_value(star_name, sine_string):
     search_result = lk.search_lightcurve(f"KIC {star_name}")
     lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
     t = lc.time.value
-    #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
-    #sine_string = "0.0020 sin(2π(10.3376)t + -0.2050) + 1 + 0.0017 sin(2π(12.4714)t + -6.2832)"
-    #0.0020  * np.sin(2 * np.pi * (10.3376) * t  + -0.2050) + 1 + 0.0017  * np.sin(2 * np.pi * (12.4714) * t  + -6.2832)
+
     sine_string = sine_string.replace('sin', 'np.sin')
     sine_string = sine_string.replace('2π', '2 * np.pi ')
     #sine_string = sine_string.replace('t', ' * t ')
     sine_string = sine_string.replace("f(t) = ", "")
-    #model_profile = eval(sine_string)
+
     OFFSET = 2454833
     expected_cadence = 1800  # seconds
 
-    # Your model definition
+
     def create_model_function(sine_string):
         """Create a callable function from the sine string"""
         def model(t, dt, *params):
-            # dt is the time offset parameter we're fitting
-            # params could be used if you want to make amplitudes/frequencies variable
             shifted_t = t + dt + (OFFSET-2457000)
             print(sine_string)
             return eval(sine_string.replace('t', 'shifted_t'))
         return model
 
-    # Define your model
-    #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
     profile_func = create_model_function(sine_string)
 
     mask = (np.isfinite(lc.flux.value.unmasked))
@@ -667,8 +628,8 @@ def get_epsilon_value(star_name, sine_string):
 
     true_time = []
     est_time = []
-    t_step = 0.1  # resolution of the Allan variance plot
-    dt = 1.0  # days, duration of measurement for curve fit
+    t_step = 0.1  
+    dt = 1.0  
     t_prev = -np.inf
 
     for t in all_time:
@@ -677,13 +638,13 @@ def get_epsilon_value(star_name, sine_string):
         else:
             continue
 
-        # grab a segment of actual light curve data
+        
         start_bxjd = t_prev
         mask = (all_time >= start_bxjd) & (all_time <= (start_bxjd + dt))
         time = all_time[mask]
         flux = all_flux[mask]
 
-        # check data quality
+        
         if len(time) == 0:
             continue
         if abs(time[-1] - start_bxjd - dt) > expected_cadence/86400:
@@ -695,7 +656,7 @@ def get_epsilon_value(star_name, sine_string):
 
         t_zeroed = time - time[0]
         
-        # Initial guesses near the start time
+      
         t0_list = np.arange(-4,4) * 0.1 + time[0] + np.random.normal(0.01, 0.05)
         t_est_list = []
         
@@ -718,11 +679,11 @@ def get_epsilon_value(star_name, sine_string):
             true_time.append(time[0])
             est_time.append(t_est)
 
-    # Rest of your plotting code remains the same...
+    
     true_time = np.array(true_time)
     est_time = np.array(est_time)
 
-    # detect gaps and create segments
+   
     time_diff = np.diff(true_time)
     mask = time_diff > 3000
     gap_indices = np.where(mask)[0]
@@ -756,7 +717,7 @@ def get_epsilon_value(star_name, sine_string):
     """
     return true_time-est_time
 
-def guessActual(nameOfStar):
+def guess_baseline(nameOfStar):
     """
     Given a star, generates a quick baseline predictive model guess
 
@@ -769,10 +730,8 @@ def guessActual(nameOfStar):
         lc (Lightcurve): lightcurve of the star
     
     """
-    frequencyfitted, search_result, powers = identifyPeaks(nameOfStar)
+    frequencyfitted, search_result, powers = identifyPeaks_dynamic(nameOfStar)
     lc = search_result
-    #lc.plot()
-    #pt.show()
     b = 0 
     c = []
     params_list = []
@@ -788,14 +747,14 @@ def guessActual(nameOfStar):
     offset_guess = np.mean(flux)
     while b < len(frequencyfitted):
         
-        #Foldedlc = lc.fold(period = (1 / frequencyfitted[b].value))
+     
  
         frequency_guess = frequencyfitted[b].value
         ig = [0.75*amplitude_guess, phase_guess, frequency_guess, offset_guess]
         # Adding bounds: to force some values of amplitude
         bounds = ([0.55*amplitude_guess, -2*np.pi, 0.9*frequency_guess, np.percentile(flux,5)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess,  np.percentile(flux,95)])
         #bounds = ([y*ampliude_guess, -2*np.pi, 0.9*frequency_guess, np.min(flux)], [amplitude_guess, 2*np.pi, 1.1*frequency_guess, np.max(flux)])
-        #WORK AND FIX THIS PART
+      
 
         if len(time) == 0 or len(flux) == 0:
               raise ValueError("After cleaning, the time or flux array is empty.")
@@ -803,15 +762,10 @@ def guessActual(nameOfStar):
         params, _ = curve_fit(sine_model, time, flux, p0=ig, bounds=bounds, method='dogbox', maxfev = 9999999)
         amplitude, phase, frequency, offset = params
         fit_c = sine_model(time, *params)
-        #amplitude, phase, frequency, offset = params
-        #residuals = flux - (fit_c)
-        #meanSquare = np.sum((residuals)**2)/len(flux)
         c.append(fit_c)
         params_list.append((amplitude, phase, frequency, offset)) 
         b += 1
-        #flux -= fit_c
-        #print(f"Reduced Chi-squared: {reduced_chi_squared:.3f}")
-    #print(f"Reduced Chi-squared Average: {np.mean(c):.3f}")
+
     return params_list, lc 
 
 def getCompositeSine(nameOfStar):
@@ -826,14 +780,14 @@ def getCompositeSine(nameOfStar):
         
         
         """
-        listofsines = guessActual(nameOfStar)
+        listofsines = guess_baseline(nameOfStar)
         addedTogether = 0
         search_result = lk.search_lightcurve(nameOfStar,quarter=(6,7,8))
         lc = search_result.download_all().stitch()
         time = lc.time.value
         flux = lc.flux.value
         time, flux = align_arrays(time,flux)
-        powerOfPeaks = identifyPeaksPowerComp(nameOfStar).value
+        powerOfPeaks = identifyPeaks_non_dynamic(nameOfStar).value
 
 
         p = 0 
@@ -849,9 +803,6 @@ def getCompositeSine(nameOfStar):
            #sine_print_terms.append(f"{amplitude:.2f} * sin(2π * {frequency:.2f} * t + {phase:.2f})")
            p += 1
         addedTogether  = addedTogether/total_weight
-        #print(f"Composite Sine Function for {a}:")
-        #print("f(t) = " + " + ".join(sine_print_terms))
-        #print(total_weight)
         return addedTogether
 
 def get_csv_epsilon_value(csv_file_path): 
@@ -865,10 +816,6 @@ def get_csv_epsilon_value(csv_file_path):
     print("Running")
     try:
         df = pd.read_csv(csv_file_path)
-        
-        #if 'TIC_ID' not in df.columns:
-        #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
-        
         KIC_list = df['KIC'].dropna().astype(str).tolist()
         FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
         i = 0 
@@ -932,7 +879,7 @@ def find_valid_segments(all_time, all_flux, dt=1.0, t_step=0.1, expected_cadence
 
     return segments
                 
-def seriesofstarsTest(listofstars):
+def seriesofstars_deep(listofstars):
     """
     Given a list of stars generate deep predictive models and export MSE to csv
 
@@ -944,7 +891,7 @@ def seriesofstarsTest(listofstars):
     try:
         for star in listofstars:
             print(f"KIC {star}")
-            function, lc, composite_strings = getCompositeSine2_second_test(f"KIC {star}")
+            function, lc, composite_strings = getCompositeSine2_deep(f"KIC {star}")
             if (function[0] == -10):
                 continue
             flux = lc.flux.value
@@ -997,11 +944,7 @@ def SpectralResiduals(nameOfStar, sine_string):
         normalized = 2 * (arr - min_val) / (max_val - min_val) -1
         return normalized
     """
-    #model = normalize_to_minus_one_to_one(model)
-    #signal = normalize_to_minus_one_to_one(signal)
-    #pt.plot(t, model)
-    #pt.plot(t,signal)
-    #pt.show()
+
     def spectral_goodness_of_fit(signal, model):
         """
         Computes the spectral residual and normalized R^2_FFT goodness-of-fit
@@ -1015,14 +958,14 @@ def SpectralResiduals(nameOfStar, sine_string):
         - spectral_residual: float
         - R2_FFT: float
         """
-        # Compute the Fourier Transforms
+      
         S_f = np.fft.fft(signal)
         M_f = np.fft.fft(model)
         
-        # Compute Spectral Residual
+       
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
         
-        # Compute normalized R^2_FFT
+      
         S_bar = np.mean(S_f)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)
@@ -1046,8 +989,7 @@ def SpectralResidualsCsvBased(csv_file_path):
     try:
         df = pd.read_csv(csv_file_path)
         
-        #if 'TIC_ID' not in df.columns:
-        #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
+
         
         KIC_list = df['KIC'].dropna().astype(str).tolist()
         FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
@@ -1083,7 +1025,7 @@ def plotMap():
     """
     pt.style.use(['science', 'no-latex'])
 
-    with open(r"C:\Users\ahmed\Downloads\asu.tsv", 'r') as file:
+    with open(r"map_file_vizier", 'r') as file:
         lines = file.readlines()
 
     kic_list = []
@@ -1122,7 +1064,7 @@ def plotMap():
         'KIC': kic_array,
         'Right Ascension': ra_array,
         'Declination': de_array})
-    #df.to_csv('star_data_locations.csv', index=False)
+    
 
     print("KIC array:", kic_array[:5])
     print("RA array (degrees):", ra_array[:5])
@@ -1145,7 +1087,7 @@ def plotMap():
     ax = pt.subplot(111, projection="aitoff")
     ax.scatter(ra_rad, de_rad, s=1)
 
-    # Set manual ticks
+   
     xticks_deg = np.arange(-180, 181, 60)
     yticks_deg = np.arange(-90, 91, 30)
     xtick_labels = [f"{int(t)}" if abs(t) != 180 else '' for t in xticks_deg]
@@ -1159,10 +1101,10 @@ def plotMap():
     ax.grid(True)
     pt.xlabel('Right Ascension (degrees)')
     pt.ylabel('Declination (degrees)')
-    #pt.savefig("my_plot.png")
+ 
     pt.show()
 
-def unpopular_clean_tess(csv_path):
+def cleaning_tess(csv_path):
     """
     Given a csv containing KIC, TIC and predictive models for a series of stars, cleans the corresponding TESS data 
     and calculates the R2_FFT values. Saves it to an CSV output.
@@ -1172,13 +1114,10 @@ def unpopular_clean_tess(csv_path):
     
     """
     print("Running")
-    #test_list = [271959957, 268160106,159302678, 239311449]
-    #test_list = str(test_list)
+
     df = pd.read_csv(csv_path)
     
-    #if 'TIC_ID' not in df.columns:
-    #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
-    
+
     TIC_list = df['TIC'].dropna().astype(str).tolist()[50:]
     KIC_list = df['KIC'].dropna().astype(str).tolist()[50:]
     FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()[50:]
@@ -1198,8 +1137,8 @@ def unpopular_clean_tess(csv_path):
         - spectral_residual: float
         - R2_FFT: float
         """
-        # Compute the Fourier Transforms
-        #n = 5  # the larger n is, the smoother curve will be
+        
+        #n = 5  
         #b = [1.0 / n] * n
         #a = 1
         #signal = lfilter(b, a, signal)
@@ -1214,8 +1153,7 @@ def unpopular_clean_tess(csv_path):
             peaks, _= find_peaks(fft, prominence=np.max(fft) * scalar)#height=[np.max(fft) * 0.55, np.max(fft) * 1.1])
             if(len(peaks) == 0):
                 peaks = [np.argmax(fft)]
-            #pt.figure(figsize=(10, 6))
-            #pt.plot(pg.frequency, pg.power, label='Periodogram')
+
             peak_amps = fft[peaks]
             filtered_fft = np.zeros(len(fft))
             #peak_index = peaks
@@ -1223,16 +1161,6 @@ def unpopular_clean_tess(csv_path):
                 if peak_index < 100:
                     continue
                 filtered_fft[peak_index - 25: peak_index+25] = fft[peak_index-25:peak_index+25]
-            #pt.plot(np.arange(len(filtered_fft)), filtered_fft)
-            #filtered_fft = np.fft.ifft(filtered_fft)
-            #print(peak_amps)
-            #pt.plot(np.arange(len(fft)), fft, color = 'green')
-            #pt.scatter(peaks, peak_amps, color = 'red')
-            
-            #pt.show()
-            
-            #print(pg.frequency[filtered_peaks])
-            #print(pg.power[filtered_peaks])
             return filtered_fft
         S_f = FilterPeaksfft(S_f)
         M_f = FilterPeaksfft(M_f, scalar = 0.2)
@@ -1243,12 +1171,12 @@ def unpopular_clean_tess(csv_path):
         pt.title(f"KIC {KIC_list[i]} | TIC {TIC_list[i]}")
         pt.legend()
         #pt.show()
-        pt.savefig(fr"C:\Users\ahmed\Downloads\higher try\pic_TIC_{TIC_list[i]}.png")
+        pt.savefig(fr"{'path_file'}\pic_TIC_{TIC_list[i]}.png")
         pt.close()
-        # Compute Spectral Residual
+       
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
        
-        # Compute normalized R^2_FFT
+      
         S_bar = np.mean(signal)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)
@@ -1261,9 +1189,7 @@ def unpopular_clean_tess(csv_path):
             master_time = []
             sine_string = FUNCTION_list[i]
             pt.close('all')
-            #if TIC_list[i] not in test_list:
-            #    i+= 1
-            #    continue
+
             search_result = lk.search_tesscut(target=f"TIC{TIC_list[i]}", sector  = [14,15] )
             
             print(search_result)
@@ -1278,13 +1204,7 @@ def unpopular_clean_tess(csv_path):
 
                 aperture_normalized_flux = s.get_aperture_lc(data_type="normalized_flux")
                 aperture_cpm_prediction = s.get_aperture_lc(data_type="cpm_prediction", weighting=None)
-                #pt.plot(s.time, aperture_normalized_flux, ".", c="k", ms=8, label="Normalized Flux")
-                #pt.plot(s.time, aperture_cpm_prediction, "-", lw=3, c="C3", alpha=0.8, label="CPM Prediction")
-                #pt.xlabel("Time - 2457000 [Days]", fontsize=30)
-                #pt.ylabel("Normalized Flux", fontsize=30)
-                #pt.tick_params(labelsize=20)
-                #pt.legend(fontsize=30)
-                
+
                 apt_detrended_flux = s.get_aperture_lc(data_type="cpm_subtracted_flux")
                 min_val = np.percentile(apt_detrended_flux, 5)
                 max_val = np.percentile(apt_detrended_flux,95)
@@ -1301,13 +1221,11 @@ def unpopular_clean_tess(csv_path):
             print(sine_string)
             model = eval(sine_string)
             model = 2 * (model - np.min(model)) / (np.max(model) - np.min(model)) - 1
-            #model *= np.max(master_flux)
+          
             spec, R2  = spectral_goodness_of_fit(master_flux, model )
             print(spec, R2)
             master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2FFT": R2})
-            #pt.plot(master_time, master_flux, "k-")
             pt.title(f"TIC {TIC_list[i]} | KIC {KIC_list[i]}")
-            #pt.savefig(fr"C:\Users\ahmed\Downloads\Filtering Results\unpop_pic_{TIC_list[i]}.png")
             i+=1
 
         except Exception as the_exception:
@@ -1315,15 +1233,15 @@ def unpopular_clean_tess(csv_path):
             print('did not find')
             print(the_exception)
             df = pd.DataFrame(master_lists_tess_pop)
-            df.to_csv(r"C:\Users\ahmed\Downloads\higher try\results.csv")
+            df.to_csv(fr"{'file_path'}\results.csv")
             i+=1
             continue
 
     df = pd.DataFrame(master_lists_tess_pop)
-    df.to_csv(fr"C:\Users\ahmed\Downloads\higher try\results.csv")
+    df.to_csv(fr"{'file_path'}\results.csv")
 
 # only for plotting  
-def unpopular_clean_tess_plotting(csv_path):
+def cleaning_tess_plotting(csv_path):
     """
     Given a csv containing KIC, TIC and predictive models for a series of stars, cleans the corresponding TESS data 
     and plots the FFT cleaning
@@ -1350,28 +1268,15 @@ def unpopular_clean_tess_plotting(csv_path):
         pt.plot(x_axis,M_f/np.max(M_f), color = 'orange', label = 'Model')
         def FilterPeaksfft(fft, scalar = 0.4):
             fft /= np.max(fft)
-            peaks, _= find_peaks(fft, prominence=np.max(fft) * scalar)#height=[np.max(fft) * 0.55, np.max(fft) * 1.1])
+            peaks, _= find_peaks(fft, prominence=np.max(fft) * scalar)
             if(len(peaks) == 0):
                 peaks = [np.argmax(fft)]
-            #pt.figure(figsize=(10, 6))
-            #pt.plot(pg.frequency, pg.power, label='Periodogram')
             peak_amps = fft[peaks]
             filtered_fft = np.zeros(len(fft))
-            #peak_index = peaks
             for peak_index in peaks:
                 if peak_index < 100:
                     continue
                 filtered_fft[peak_index - 25: peak_index+25] = fft[peak_index-25:peak_index+25]
-            #pt.plot(np.arange(len(filtered_fft)), filtered_fft)
-            #filtered_fft = np.fft.ifft(filtered_fft)
-            #print(peak_amps)
-            #pt.plot(np.arange(len(fft)), fft, color = 'green')
-            #pt.scatter(peaks, peak_amps, color = 'red')
-            
-            #pt.show()
-            
-            #print(pg.frequency[filtered_peaks])
-            #print(pg.power[filtered_peaks])
             return filtered_fft
         S_f = FilterPeaksfft(S_f)
         M_f = FilterPeaksfft(M_f, scalar = 0.2)
@@ -1383,13 +1288,8 @@ def unpopular_clean_tess_plotting(csv_path):
         pt.xlabel('Frequency (cycles/BKJD)')
         pt.ylabel('Normalized Power')
         pt.legend()
-        #pt.show()
-        #pt.savefig(fr"C:\Users\ahmed\Downloads\higher try\pic_TIC_{TIC_list[i]}.png")
         pt.show()
-        # Compute Spectral Residual
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
-       
-        # Compute normalized R^2_FFT
         S_bar = np.mean(signal)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)
@@ -1402,9 +1302,7 @@ def unpopular_clean_tess_plotting(csv_path):
             master_time = []
             sine_string = FUNCTION_list[i]
             pt.close('all')
-            #if TIC_list[i] not in test_list:
-            #    i+= 1
-            #    continue
+
             search_result = lk.search_tesscut(target=f"TIC{TIC_list[i]}", sector  = [14,15] )
             
             print(search_result)
@@ -1442,29 +1340,25 @@ def unpopular_clean_tess_plotting(csv_path):
             print(sine_string)
             model = eval(sine_string)
             model = 2 * (model - np.min(model)) / (np.max(model) - np.min(model)) - 1
-            #model *= np.max(master_flux)
+            
             spec, R2  = spectral_goodness_of_fit(master_flux, model, master_time )
             print(spec, R2)
             master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2FFT": R2})
-            #pt.plot(master_time, master_flux, "k-")
+         
             pt.title(f"TIC {TIC_list[i]} | KIC {KIC_list[i]}")
-            #pt.savefig(fr"C:\Users\ahmed\Downloads\Filtering Results\unpop_pic_{TIC_list[i]}.png")
+
             i+=1
 
         except Exception as the_exception:
             master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": 0,"R2FFT": -1})
             print('did not find')
             print(the_exception)
-            #df = pd.DataFrame(master_lists_tess_pop)
-            #df.to_csv(r"C:\Users\ahmed\Downloads\higher try\results.csv")
             i+=1
             continue
 
 
         
 
-    #df = pd.DataFrame(master_lists_tess_pop)
-    #df.to_csv(fr"C:\Users\ahmed\Downloads\higher try\results.csv")
 
 
 
