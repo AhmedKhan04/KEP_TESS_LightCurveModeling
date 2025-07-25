@@ -1,6 +1,6 @@
 # 🌠🔭 Fourier-Based Predictive Modeling of δ Scuti Variable Stars Framework
 
-We assess the predictability of a large dataset of δ scuti variable stars in detail. Few methods currently exist that can reliably determine the stability or predict the luminosity behavior of δ scuti variable stars. To address this, we develop a computational framework to identify δ scuti variable stars whose luminosity behavior can be accurately modeled as superpositions of sinusoidal functions. These predictive models provide a foundation for identifying δ scuti variable stars suitable for use in practical applications such as autonomous deep-space navigation systems for spacecraft, which rely on such stars as navigational aid. This project provides the computational framework for **modeling the light curves of delta scuti variable stars** outlined in the study. 
+We assess the predictability of a large dataset of δ scuti variable stars in detail. Few methods currently exist that can reliably determine the stability or predict the luminosity behavior of δ scuti variable stars. To address this, we develop a computational framework to identify δ scuti variable stars whose luminosity behavior can be accurately modeled as superpositions of sinusoidal functions. These predictive models provide a foundation for identifying δ scuti variable stars suitable for use in practical applications such as autonomous deep-space navigation systems for spacecraft, which rely on such stars as navigational aid. This project provides the computational framework for **modeling the light curves of δ scuti variable stars** outlined in the study. 
 
 
 ---
@@ -10,7 +10,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 - ``` bash
   final_code_base.py
   ```
-  This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **delta scuti variable stars**. It includes:
+  This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **δ scuti variable stars**. It includes:
 
   - Algorithms to model light curves as superpositions of sinusodial functions
   - R_fft² and epsilon time error analysis
@@ -20,7 +20,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 - ``` bash
   Legacy_supporting_files
   ```
-  This directory contains the **entire data set of analyzed delta scuti variable stars**, including:
+  This directory contains the **entire data set of analyzed δ scuti variable stars**, including:
 
   - Cleaned light curve datasets
   - Star metadata (e.g., KIC IDs, TIC IDs, pulsation modes, magnitude in Kepler photometric band, etc.)
@@ -76,19 +76,40 @@ python final_code_base.py
 
 ### 📈 Sample Usage
 
-Here is an example of using the framework designed inside `final_code_base.py` to model a delta scuti variable star:
+Here is an example of using the framework designed inside `final_code_base.py` to model a δ scuti variable star:
 
 ```python
-from final_code_base import fit_light_curve, load_data
+import numpy as np
+import matplotlib.pyplot as pt 
+import lightkurve as lk 
+from scipy.optimize import curve_fit
+from scipy.signal import find_peaks, lfilter
+from scipy.interpolate import interp1d
+from scipy.spatial.distance import cdist
+import pandas as pd
+from scipy.optimize import minimize
+from scipy.interpolate import interp1d
+from astroquery.mast import Tesscut
+from astroquery.mast.utils import parse_input_location
+import unpopular
+import scienceplots
 
-# Load light curve data for a specific Delta Scuti star
-time, flux = load_data("Master_Data_Sets_FULL/KIC_9851822.csv")
+# Corresponds to KIC 3429637
+name_star = '3429637'
 
-# Fit the model
-fit_result = fit_light_curve(time, flux, num_terms=5)
+# Generate predictive model
+predictive_model_array, light_curve, predictive_model_string = getCompositeSine2_deep(name_star) 
 
-# Plot the fit
-fit_result.plot()
+# Plot the composite function, residuals and light curve
+plotsidebyside_deep(name_star)
+
+# Extract epsilon values
+epsilon_array = get_epsilon_value(name_star, predictive_model_string)
+
+# Produce R^2_FFT and spectral residual values between light curve and model
+
+spectral_residuals, R2_FFT = SpectralResiduals(name_star, predictive_model_string)
+
 ```
 
 ---
@@ -100,7 +121,7 @@ fit_result.plot()
 
 ---
 
-## 📂 Summary of Files: 
+## 📁 Summary of Files: 
 
 | Files                      | Purpose                        |
 | -------------------------- | ------------------------------ |
