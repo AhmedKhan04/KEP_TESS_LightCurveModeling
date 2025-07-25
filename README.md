@@ -13,7 +13,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
   This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **δ scuti variable stars**. It includes:
 
   - Algorithms to model light curves as superpositions of sinusodial functions
-  - R_fft² and epsilon time error analysis
+  - R²_fft and epsilon time error analysis
   - Detrending of TESS light curves and model accuracy assessment 
   - Plotting and interactive tools for light curves, target pixel files and periodograms
 
