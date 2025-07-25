@@ -55,7 +55,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 ---
 
-## 🚀 How to Use
+## 🚀 Quickstart
 
 ### 🔧 Prerequisites
 
