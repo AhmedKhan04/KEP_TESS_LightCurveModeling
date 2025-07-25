@@ -74,9 +74,9 @@ From the root directory:
 python final_code_base.py
 ```
 
-### 📈 Sample Usage
+### 🌌 Sample Usage
 
-Here is an example of using the framework designed inside `final_code_base.py` to model a δ scuti variable star:
+Here is an example of using the framework within `final_code_base.py` to model a δ scuti variable star:
 
 ```python
 import numpy as np
