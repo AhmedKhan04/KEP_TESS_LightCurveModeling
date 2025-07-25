@@ -7,7 +7,9 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 ## 📚 Package Contents
 
-- ``\
+- ``` bash
+  python final_code_base.py
+  ```
   This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **delta scuti variable stars**. It includes:
 
   - Fourier decomposition modeling
@@ -31,19 +33,19 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 ---
 
-## 📞 Points of Contact
+## 📧 Points of Contact
 
 - **Corresponding Author** Ahmed Khan  ahmedk2@illinois.edu
 - **Institution:** Department of Aerospace Engineering, University of Illinois at Urbana-Champaign
-- **Collaborators:** [List collaborators if applicable]
+- **Collaborators:** Tiger Hou  linyhi2@illinois.edu, Seigfried Eggl  eggl@illinois.edu
 
 ---
 
-## 📌 Status
+## 💻 Usage
 
 - ✅ **Actively Maintained** – The package is current and stable for general use.
-- ⚠️ **Not on PyPI / Not a Standalone Package** – To run the scripts, clone the repository and run them directly with Python.
-- 📁 **Requires Manual Data Handling** – Input datasets are located in the `Master_Data_Sets_FULL/` directory and must be referenced in your local runtime.
+- 🚫  **Not a Standalone Package** – To run the scripts, clone the repository and run them directly with Python.
+- ⚠️ **Requires Manual Data Handling** – Inputs will need to be directly inputed by the user.
 
 ---
 
