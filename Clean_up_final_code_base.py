@@ -532,7 +532,6 @@ def plotsidebyside_swift(nameOfStar):
     pt.tight_layout()
     pt.show()
 
-
 def plotsidebyside_deep(nameOfStar):
     """
     Deeply generates model and plots light curve, predictive model and residuals
@@ -565,7 +564,6 @@ def plotsidebyside_deep(nameOfStar):
     pt.grid()
     pt.tight_layout()
     pt.show()
-
 
 def interpolate(time, flux, target_time):
     """
