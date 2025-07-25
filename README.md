@@ -1,1 +1,0 @@
-This project models light curves of delta scuti variable stars. Here we provide the computational framework utilized to model the light curves. final_code_base.py houses all methods. Master_Data_Sets_FULL houses all analyzed data and Legacy_supporting_files contains other non-essential scripts used. 
