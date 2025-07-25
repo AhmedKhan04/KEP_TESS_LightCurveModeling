@@ -5,37 +5,37 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 ---
 
-## 📚 Package Contents
+## 📂 Contents
 
 - ``` bash
   final_code_base.py
   ```
   This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **delta scuti variable stars**. It includes:
 
-  - Fourier decomposition modeling
-  - R_fft² and residual analysis
-  - Preprocessing and smoothing routines
-  - Plotting utilities for light curves
+  - Algorithms to model light curves as superpositions of sinusodial functions
+  - R_fft² and epsilon time error analysis
+  - Detrending of TESS light curves and model accuracy assessment 
+  - Plotting and interactive tools for light curves, target pixel files and periodograms
 
 - ``` bash
   Legacy_supporting_files
   ```
-  This directory contains the **entire set of analyzed observational data**, including:
+  This directory contains the **entire data set of analyzed delta scuti variable stars**, including:
 
   - Cleaned light curve datasets
-  - Star metadata (KIC IDs, TIC IDs, pulsation modes, magnitude in  etc.)
-  - Sample outputs (e.g., fitted parameters and residuals)
+  - Star metadata (e.g., KIC IDs, TIC IDs, pulsation modes, magnitude in Kepler photometric band, etc.)
+  - Outputs (e.g., fitted parameters, NRMSE, Epsilon, etc.)
 
 - ``` bash
   Master_Data_Sets_FULL
   ```
-  Contains **archived and non-essential scripts**, including:
+  Contains **legacy and non-essential scripts**, including:
 
   - Initial versions of the modeling code
   - Alternate modeling approaches
   - Additional plotting and visualization tools
 
-  ⚠️ **Files within** 'Master_Data_Sets_FULL' **may not be stable**
+  ⚠️ **Files within** `Master_Data_Sets_FULL` **may not be stable**
 
 ---
 
@@ -57,7 +57,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 ## 🚀 How to Use
 
-### 🧰 Prerequisites
+### 🔧 Prerequisites
 
 Make sure the following are installed:
 
@@ -69,13 +69,14 @@ pip install numpy pandas matplotlib scipy lightkurve scipy astropy unpopular sci
 
 From the root directory:
 
+**run:**
 ```bash
 python final_code_base.py
 ```
 
 ### 📈 Sample Usage
 
-Here is an example of using the code inside `final_code_base.py` to model a star:
+Here is an example of using the framework designed inside `final_code_base.py` to model a delta scuti variable star:
 
 ```python
 from final_code_base import fit_light_curve, load_data
@@ -92,11 +93,10 @@ fit_result.plot()
 
 ---
 
-## 📌 Documentation & Links
+## 📜 Documentation & Links
 
-- [Delta Scuti Variable Stars Overview – AAVSO](https://www.aavso.org/delta-scuti-variables)
-- [Fourier Analysis in Variable Star Research – NASA ADS](https://ui.adsabs.harvard.edu/)
-- (Add links to internal documentation or GitHub repo if available)
+- [Gerald Handler; Delta Scuti Variables. AIP Conf. Proc. 16 September 2009; 1170 (1): 403–409.] (https://doi.org/10.1063/1.3246528)
+- [Position and Time Determination without Prior State Knowledge via Onboard Optical Observations of Delta Scuti Variable Stars] (https://doi.org/10.48550/arXiv.2406.17609)
 
 ---
 
@@ -104,9 +104,9 @@ fit_result.plot()
 
 | Files                      | Purpose                        |
 | -------------------------- | ------------------------------ |
-| `final_code_base.py`       | Core modeling Framework        |
+| `final_code_base.py`       | Core Modeling Framework        |
 | `Master_Data_Sets_FULL/`   | Complete Datasets              |
-| `Legacy_supporting_files/` | Non-essential, legacy scripts  |
+| `Legacy_supporting_files/` | Non-essential, Legacy Scripts  |
 
 
 
