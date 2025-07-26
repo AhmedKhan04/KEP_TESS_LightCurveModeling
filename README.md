@@ -128,7 +128,7 @@ spectral_residuals, R2_FFT = SpectralResiduals(name_star, predictive_model_strin
 | -------------------------- | ------------------------------ |
 | `final_code_base.py`       | Core Modeling Framework        |
 | `Master_Data_Sets_FULL/`   | Complete Datasets              |
-| `Legacy_supporting_files/` | Non-essential, Legacy Scripts  |
+| `Legacy_supporting_files/` | Non-Essential, Legacy Scripts  |
 
 
 
