@@ -100,7 +100,7 @@ import scienceplots
 # Corresponds to KIC 3429637
 name_star = '3429637'
 
-# Generate predictive model
+# Generate the predictive model
 predictive_model_array, light_curve, predictive_model_string = getCompositeSine2_deep(name_star) 
 
 # Plot the composite function, residuals and light curve
