@@ -44,7 +44,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 - **Corresponding Author:** Ahmed Khan  ahmedk2@illinois.edu
 - **Institution:** Department of Aerospace Engineering, University of Illinois at Urbana-Champaign
-- **Collaborators:** Tiger Hou  linyhi2@illinois.edu, Seigfried Eggl  eggl@illinois.edu
+- **Collaborators:** Tiger Hou  linyhi2@illinois.edu, Siegfried Eggl  eggl@illinois.edu
 
 ---
 
