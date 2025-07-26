@@ -2,6 +2,7 @@
 
 We assess the predictability of a large dataset of δ scuti variable stars in detail. Few methods currently exist that can reliably determine the stability or predict the luminosity behavior of δ scuti variable stars. To address this, we develop a computational framework to identify δ scuti variable stars whose luminosity behavior can be accurately modeled as superpositions of sinusoidal functions. These predictive models provide a foundation for identifying δ scuti variable stars suitable for use in practical applications such as autonomous deep-space navigation systems for spacecraft, which rely on such stars as navigational aid. This project provides the computational framework for **modeling the light curves of δ scuti variable stars** outlined in the study. 
 
+[![DOI](https://zenodo.org/badge/925039502.svg)](https://doi.org/10.5281/zenodo.16427747)
 
 ---
 
