@@ -18,6 +18,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
   - Detrending of TESS light curves and model accuracy assessment 
   - Plotting and interactive tools for light curves, target pixel files and periodograms
 
+
 - ``` bash
   Legacy_supporting_files
   ```
@@ -26,6 +27,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
   - Cleaned light curve datasets
   - Star metadata (e.g., KIC IDs, TIC IDs, pulsation modes, magnitudes in Kepler photometric band, etc.)
   - Outputs (e.g., fitted parameters, NRMSE, epsilon, etc.)
+
 
 - ``` bash
   Master_Data_Sets_FULL
