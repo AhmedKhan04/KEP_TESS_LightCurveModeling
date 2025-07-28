@@ -20,7 +20,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 
 - ``` bash
-  Legacy_supporting_files
+  Master_Data_Sets_FULL
   ```
   This directory contains the **entire data set of analyzed δ scuti variable stars**, including:
 
@@ -30,7 +30,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 
 
 - ``` bash
-  Master_Data_Sets_FULL
+  Legacy_supporting_files
   ```
   Contains **legacy and non-essential scripts**, including:
 
@@ -38,7 +38,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
   - Alternate modeling approaches
   - Additional plotting and visualization tools
 
-  ⚠️ **Files within** `Master_Data_Sets_FULL` **may not be stable**
+  ⚠️ **Files within** `Legacy_supporting_files` **may not be stable**
 
 ---
 
