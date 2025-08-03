@@ -41,12 +41,49 @@ def getPeriodogramData(nameOfStar):
     #return z
 
 def compGetPeriodogramData(nameOfStar): 
-    x = lk.search_targetpixelfile(nameOfStar).download().to_lightcurve()
-    y = lk.search_lightcurve(nameOfStar, quarter = (6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
-    #y = lk.search_lightcurve(nameOfStar).download().remove_outliers(sigma = 5.0)
+    #x = lk.search_targetpixelfile(nameOfStar).download().to_lightcurve()
+    #y = lk.search_lightcurve(nameOfStar, quarter = (6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
+    
+    
+    master_flux = []
+    master_time = []
+    #    i+= 1
+    #    continue
+    search_result = lk.search_tesscut(target=f"{nameOfStar}")
+    search_result = search_result[0]
+    print(search_result)
+    tpf_collection = search_result.download_all(cutout_size=50)
+    for l in tpf_collection:
+        s = unpopular.Source(l.path, remove_bad=True)
+        s.set_aperture(rowlims=[25, 26], collims=[25, 26])
+        s.add_cpm_model(exclusion_size=5, n=64, predictor_method="similar_brightness")
+        s.set_regs([0.1])
+        s.holdout_fit_predict(k=100);
+
+        aperture_normalized_flux = s.get_aperture_lc(data_type="normalized_flux")
+        aperture_cpm_prediction = s.get_aperture_lc(data_type="cpm_prediction", weighting=None)
+        #pt.plot(s.time, aperture_normalized_flux, ".", c="k", ms=8, label="Normalized Flux")
+        #pt.plot(s.time, aperture_cpm_prediction, "-", lw=3, c="C3", alpha=0.8, label="CPM Prediction")
+        #pt.xlabel("Time - 2457000 [Days]", fontsize=30)
+        #pt.ylabel("Normalized Flux", fontsize=30)
+        #pt.tick_params(labelsize=20)
+        #pt.legend(fontsize=30)
+        
+        apt_detrended_flux = s.get_aperture_lc(data_type="cpm_subtracted_flux")
+        min_val = np.percentile(apt_detrended_flux, 5)
+        max_val = np.percentile(apt_detrended_flux,95)
+
+        normalized_data = (2 * (apt_detrended_flux - min_val) / (max_val - min_val) - 1) 
+        master_flux.extend(normalized_data)
+        master_time.extend(s.time)
+    
+    y = lk.TessLightCurve(time=s.time, flux=apt_detrended_flux) #lk.search_lightcurve(nameOfStar).download().remove_outliers(sigma = 5.0)
     #print(y.author)
     ## quarter term ^^^  y = lk.search_lightcurve(nameOfStar, quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
-    z = x.to_periodogram()
+    z = y.to_periodogram()
+    plt.plot(z.frequency, z.power)
+    plt.show()
+    
     #z.smooth(method='logmedian', filter_width=0.1).plot(linewidth=2,  color='red', label='Smoothed', scale='log')
     return z, y
 
@@ -60,7 +97,7 @@ def GetProperites(periodogram):
 def sine_model(t, amplitude, phase, frequency, offset):
     return amplitude * np.sin(2 * np.pi * frequency * t + phase) + offset
 
-def identifyPeaks(nameOfStar, lowerscalar = 0.1):
+def identifyPeaks(nameOfStar, lowerscalar = 0.2):
     pg, lightc = compGetPeriodogramData(nameOfStar)
     max_power = np.max(pg.power.value)
     peaks, _ = find_peaks(pg.power, height=[max_power * lowerscalar, max_power * 1.1])
@@ -84,20 +121,21 @@ def identifyPeaks(nameOfStar, lowerscalar = 0.1):
             else: 
                 filtered_peaks.append(peaks[i])
     if(len(pg.frequency[filtered_peaks]) > 10):
+        #print("hellll")
         return -1, 0        
-    #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-    #pt.xlabel('Frequency (cycles/BKJD)')
-    #pt.ylabel('Power')
-    #pt.title('Periodogram with Local Maxima: '+ nameOfStar)
-    #pt.legend()
-    #pt.show()
+    pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
+    pt.xlabel('Frequency (cycles/BKJD)')
+    pt.ylabel('Power')
+    pt.title('Periodogram with Local Maxima: '+ nameOfStar)
+    pt.legend()
+    pt.show()
     
     return(pg.frequency[filtered_peaks], lightc, pg.power[filtered_peaks])
 
 def identifyPeaksPowerComp(nameOfStar):
     pg, ltcurves = compGetPeriodogramData(nameOfStar)
     max_power = np.max(pg.power.value)
-    peaks, _ = find_peaks(pg.power, height=[max_power * 0.1, max_power * 1.1])
+    peaks, _ = find_peaks(pg.power, height=[max_power * 0.2, max_power * 1.1])
     #pt.figure(figsize=(10, 6))
     #pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
@@ -670,8 +708,9 @@ def getCompositeSine2(a):
 
 def getCompositeSine2_second_test(a):
         powerOfPeaks, _ = identifyPeaksPowerComp(a)
-        if(powerOfPeaks == -1):
-            return [-10], 0,"0"
+        #if(powerOfPeaks == [-1]):
+        #    
+        #    return [-10], 0,"0"
         print(len(powerOfPeaks))
         powerOfPeaks = powerOfPeaks.value
         frequencyfitted2, search_result2, powers2 = identifyPeaks(a)
@@ -805,7 +844,7 @@ def plotsidebysideactual_manual(a):
 def plotsidebysideactual(a):
     function, lc, _ = getCompositeSine2_second_test(a)
     
-    #flux = lc.flux.value
+    flux = lc.flux.value
     #print(flux)
     #print(function)
     time = lc.time.value
@@ -1035,14 +1074,12 @@ def get_epsilon_value(star_name, sine_string):
 
     search_result = lk.search_lightcurve(f"KIC {star_name}")
     lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
-    print(star_name)
     t = lc.time.value
     #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
     #sine_string = "0.0020 sin(2π(10.3376)t + -0.2050) + 1 + 0.0017 sin(2π(12.4714)t + -6.2832)"
     #0.0020  * np.sin(2 * np.pi * (10.3376) * t  + -0.2050) + 1 + 0.0017  * np.sin(2 * np.pi * (12.4714) * t  + -6.2832)
     sine_string = sine_string.replace('sin', 'np.sin')
     sine_string = sine_string.replace('2π', '2 * np.pi ')
-    #sine_string = sine_string.replace('2??', '2 * np.pi ')
     #sine_string = sine_string.replace('t', ' * t ')
     sine_string = sine_string.replace("f(t) = ", "")
     #model_profile = eval(sine_string)
@@ -1054,8 +1091,8 @@ def get_epsilon_value(star_name, sine_string):
         """Create a callable function from the sine string"""
         def model(t, dt, *params):
 
-            shifted_t = t + dt + (OFFSET)
-            #print(sine_string)
+            shifted_t = t + dt #+ (OFFSET-2457000)
+            print(sine_string)
             return eval(sine_string.replace('t', 'shifted_t'))
         return model
 
@@ -1144,7 +1181,7 @@ def get_epsilon_value(star_name, sine_string):
     for ii, ax in enumerate(axs):
         ax.scatter(true_time-tshift + OFFSET - 2400000.5, true_time-est_time, c='k', s=0.5, label = "Phase Shift (BKJD Days)")
         if ii == 0:
-            ax.set_ylabel('Epsilon (BKJD Days)')
+            ax.set_ylabel('Epsilon (BKJD days)')
           
             pt.title(f"Epsilon Values for KIC {star_name}")
         ax.set_xlim(segments[ii][0]-tshift + OFFSET - 2400000.5 - margin, 
@@ -1157,6 +1194,189 @@ def get_epsilon_value(star_name, sine_string):
     fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
     """
     return true_time-est_time
+
+
+def get_epsilon_value_tess_nav(star_name, sine_string_list):
+
+    master_list_eps = []
+    i = 0 
+    for nameOfStar, sine_string in zip(star_name, sine_string_list):
+        master_flux = []
+        master_time = [] 
+        #search_result = lk.search_lightcurve(f"{star_name}")
+        #lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
+        search_result = lk.search_tesscut(target=f"{nameOfStar}")
+        search_result = search_result[0]
+        print(search_result)
+        tpf_collection = search_result.download_all(cutout_size=50)
+        
+        for l in tpf_collection:
+            s = unpopular.Source(l.path, remove_bad=True)
+            s.set_aperture(rowlims=[25, 26], collims=[25, 26])
+            s.add_cpm_model(exclusion_size=5, n=64, predictor_method="similar_brightness")
+            s.set_regs([0.1])
+            s.holdout_fit_predict(k=100);
+
+            aperture_normalized_flux = s.get_aperture_lc(data_type="normalized_flux")
+            aperture_cpm_prediction = s.get_aperture_lc(data_type="cpm_prediction", weighting=None)
+            #pt.plot(s.time, aperture_normalized_flux, ".", c="k", ms=8, label="Normalized Flux")
+            #pt.plot(s.time, aperture_cpm_prediction, "-", lw=3, c="C3", alpha=0.8, label="CPM Prediction")
+            #pt.xlabel("Time - 2457000 [Days]", fontsize=30)
+            #pt.ylabel("Normalized Flux", fontsize=30)
+            #pt.tick_params(labelsize=20)
+            #pt.legend(fontsize=30)
+            
+            apt_detrended_flux = s.get_aperture_lc(data_type="cpm_subtracted_flux")
+            min_val = np.percentile(apt_detrended_flux, 5)
+            max_val = np.percentile(apt_detrended_flux,95)
+
+            normalized_data = (2 * (apt_detrended_flux - min_val) / (max_val - min_val) - 1) 
+            master_flux.extend(normalized_data)
+            master_time.extend(s.time)
+        
+        lc = lk.TessLightCurve(time=s.time, flux=apt_detrended_flux) #lk.search_lightcurve(nameOfStar).download().remove_outliers(sigma = 5.0)
+        #print(y.author)
+    
+    
+    
+        t = lc.time.value
+        #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
+        #sine_string = "0.0020 sin(2π(10.3376)t + -0.2050) + 1 + 0.0017 sin(2π(12.4714)t + -6.2832)"
+        #0.0020  * np.sin(2 * np.pi * (10.3376) * t  + -0.2050) + 1 + 0.0017  * np.sin(2 * np.pi * (12.4714) * t  + -6.2832)
+        sine_string = sine_string.replace('sin', 'np.sin')
+        sine_string = sine_string.replace('2π', '2 * np.pi ')
+        #sine_string = sine_string.replace('t', ' * t ')
+        sine_string = sine_string.replace("f(t) = ", "")
+        #model_profile = eval(sine_string)
+        OFFSET = 2457000
+        expected_cadence = 1426  # seconds
+
+        
+        def create_model_function(sine_string):
+            """Create a callable function from the sine string"""
+            def model(t, dt, *params):
+
+                shifted_t = t + dt # + (OFFSET-2457000)
+                print(sine_string)
+                return eval(sine_string.replace('t', 'shifted_t'))
+            return model
+
+        
+        #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
+        profile_func = create_model_function(sine_string)
+
+        #mask = (np.isfinite(lc.flux.value.unmasked))
+        all_flux = lc.flux.value#[mask]
+        all_time = lc.time.value#[mask]
+        #print(all_time)
+        true_time = []
+        est_time = []
+        t_step = 0.1  
+        dt = 1.0  
+        t_prev = -np.inf
+
+        for t in all_time:
+            if t - t_prev > t_step:
+                t_prev = t
+            else:
+                continue
+
+            
+            start_bxjd = t_prev
+            mask = (all_time >= start_bxjd) & (all_time <= (start_bxjd + dt))
+            time = all_time[mask]
+            flux = all_flux[mask]
+            print(time)
+            print(flux)
+        
+            if len(time) == 0:
+                continue
+            
+            if abs(time[-1] - start_bxjd - dt) > expected_cadence/86400:
+                continue
+            if abs(time[0] - start_bxjd) > expected_cadence/86400:
+                continue
+            if np.any(np.diff(time) > expected_cadence/86400):
+                continue
+            
+        
+            t_zeroed = time - time[0]
+            
+            
+            t0_list = np.arange(-4,4) * 0.1 + time[0] + np.random.normal(0.01, 0.05)
+            t_est_list = []
+            
+            for t0 in t0_list:
+                try:
+                    popt, pcov = curve_fit(
+                        profile_func,
+                        xdata=t_zeroed,
+                        ydata=flux,
+                        p0=t0,
+                        xtol=1e-12,
+                        maxfev=1000
+                    )
+                    t_est_list.append(popt[0])
+                except RuntimeError:
+                    continue
+            
+            if len(t_est_list) > 0:
+                t_est = t_est_list[np.argmin(np.abs(t_est_list-time[0]))]
+                true_time.append(time[0])
+                est_time.append(t_est)
+
+    
+        true_time = np.array(true_time)
+        est_time = np.array(est_time)
+
+        
+        time_diff = np.diff(true_time)
+        mask = time_diff > 3000
+        gap_indices = np.where(mask)[0]
+        segments = np.split(true_time, gap_indices+1)
+        """
+        # plotting
+        tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5)/100)*100)
+        margin = 0.5  # days
+        
+        fig_oc, axs = pt.subplots(1, len(segments), figsize=(8,3), sharey=True, 
+                                gridspec_kw={'wspace': 0, 'hspace': 0},
+                                width_ratios=[seg[-1]-seg[0] + margin*2 for seg in segments])
+
+        if not isinstance(axs, np.ndarray):
+            axs = [axs]
+
+        for ii, ax in enumerate(axs):
+            ax.scatter(true_time-tshift + OFFSET - 2400000.5, true_time-est_time, c='k', s=0.5, label = "Phase Shift (BKJD Days)")
+            if ii == 0:
+                ax.set_ylabel('Epsilon (BKJD days)')
+            
+                pt.title(f"Epsilon Values for KIC {star_name}")
+            ax.set_xlim(segments[ii][0]-tshift + OFFSET - 2400000.5 - margin, 
+                        segments[ii][-1]-tshift + OFFSET - 2400000.5 + margin)
+        
+        positive_data = np.abs(true_time-est_time)
+        m, b = np.polyfit(true_time-tshift + OFFSET - 2400000.5, positive_data, 1)
+        x = true_time-tshift + OFFSET - 2400000.5
+        pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
+        fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
+        """
+        eps = true_time-est_time
+        half = int(len(eps)/2)
+        eps_1_half = eps[:half]
+        eps_2_half = eps[half:]
+        print(np.average(eps))
+        print(np.average(eps_1_half))
+        print(np.average(eps_2_half))
+        percentage = np.abs(np.average(eps_2_half)-np.average(eps_1_half))/((np.average(eps_1_half) + np.average(eps_2_half))/2)
+        percentage *= 100
+        master_list_eps.append({"Name": star_name[i], "average eps": np.average(eps), "1 Half": np.average(eps_1_half), "2 Half": np.average(eps_2_half), "Percent Diff": percentage})
+        i += 1
+    df = pd.DataFrame(master_list_eps)
+    df.to_csv('KeplerStarsOutput_EPS_VALS_updated_tess_nav.csv', index=False)
+    print("\nResults saved to KeplerStarsOutput")
+        #master_list_eps.append({"KIC": star_name[i], "average eps": np.average(eps), "1 Half": np.average(eps_1_half), "2 Half": np.average(eps_2_half), "Percent Diff": percentage})
+        #return true_time-est_time
 
 
 def get_csv_epsilon_value(csv_file_path): 
@@ -1179,27 +1399,17 @@ def get_csv_epsilon_value(csv_file_path):
             half = int(len(eps)/2)
             eps_1_half = eps[:half]
             eps_2_half = eps[half:]
-            #print(KIC_list[i])
             print(np.average(eps))
             print(np.average(eps_1_half))
             print(np.average(eps_2_half))
-            percentage = np.abs(np.average(eps_2_half)-np.average(eps_1_half))/((np.average(eps_1_half) + np.average(eps_2_half))/2)
-            percentage *= 100
-            percentage = np.abs(percentage)
-            print(percentage)
-            master_list_eps.append({"KIC": KIC_list[i], "average eps": np.average(eps), "1 Half": np.average(eps_1_half), "2 Half": np.average(eps_2_half), "Percent Diff": percentage})
-            
-            if(i % 5 == 0 and i != 0):
-                df = pd.DataFrame(master_list_eps)
-                df.to_csv('KeplerStarsOutput_EPS_VALS_updated_2.csv', index=False)
-                print("\nResults saved to KeplerStarsOutput")
+            master_list_eps.append({"KIC": KIC_list[i], "average eps": np.average(eps), "1 Half": np.average(eps_1_half), "2 Half": np.average(eps_2_half)})
             i += 1
         df = pd.DataFrame(master_list_eps)
-        df.to_csv('KeplerStarsOutput_EPS_VALS_updated_2.csv', index=False)
+        df.to_csv('KeplerStarsOutput_EPS_VALS.csv', index=False)
         print("\nResults saved to KeplerStarsOutput")
     except Exception as e:
         df = pd.DataFrame(master_list_eps)
-        df.to_csv('KeplerStarsOutput_EPS_VALS_updated_2.csv', index=False)
+        df.to_csv('KeplerStarsOutput_EPS_VALS.csv', index=False)
         print("\nResults saved to KeplerStarsOutput")
         print(f"Error loading TIC IDs: {e}")
         return []
@@ -1972,7 +2182,7 @@ def unpopular_clean_tess_plotting(csv_path):
             #if TIC_list[i] not in test_list:
             #    i+= 1
             #    continue
-            search_result = lk.search_tesscut(target=f"TIC{TIC_list[i]}", sector  = [14,15] )
+            search_result = lk.search_tesscut(target=f"TIC {TIC_list[i]}", sector  = [14,15] )
             
             print(search_result)
             tpf_collection = search_result.download_all(cutout_size=50)
@@ -2049,8 +2259,8 @@ def unpopular_clean_tess_plotting(csv_path):
 
 #pt.rc('legend', labelsize= 12)
 
-pt.style.use(['science', 'no-latex'])
-pt.rcParams.update({'figure.dpi': '300'})
+#pt.style.use(['science', 'no-latex'])
+#pt.rcParams.update({'figure.dpi': '300'})
 a = ['KIC 12602250', 'KIC 9700322','KIC 4048494', 'KIC 6951642', 'KIC 8623953', 'KIC 8197761']
 b = ['KIC 3429637', 'KIC 10451090', 'KIC 2987660']
 c = ['KIC 12602250' , 'KIC 9700322' , 'KIC 8197761' , 'KIC 8623953' ,  'KIC 6382916' ,'KIC 3429637']
@@ -2078,16 +2288,16 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
     #pt.show()
 #print(results)
 #get_epsilon_value()
-#eps = get_epsilon_value("8197761", "f(t) = 0.0047 * sin(2π * 1.0983 * t + 2.7960) + 0.7343 + 0.0005 * sin(2π * 1.5464 * t + 3.9936) + 0.0798 + 0.0012 * sin(2π * 2.0353 * t + 3.7956) + 0.1853")
-
+#eps = get_epsilon_value("3429637", "f(t) = 0.0022 * sin(2π * 10.3376 * t + -0.2375) + 0.4865 + 0.0005 * sin(2π * 10.9363 * t + -6.2832) + 0.1066 + 0.0018 * sin(2π * 12.4714 * t + -6.2832) + 0.4069")
 
 #eps = get_epsilon_value("12268220", "f(t) = 0.0006 * sin(2π * 1.3580 * t + -0.4060) + 0.2128 + 0.0005 * sin(2π * 1.8051 * t + 6.2832) + 0.1782 + 0.0004 * sin(2π * 2.2606 * t + 1.5659) + 0.1511 + 0.0003 * sin(2π * 2.7156 * t + -1.9018) + 0.1190 + 0.0003 * sin(2π * 3.1640 * t + -1.6757) + 0.0954 + 0.0002 * sin(2π * 22.1534 * t + -0.8883) + 0.0912 + 0.0004 * sin(2π * 23.6299 * t + 1.6420) + 0.1505")
 #stars_named = ['GN And', 'V0340 And', 'KW Aur', 'iot Boo', 'kap 2 Boo', 'AO CVn', 'bet Cas', 'V0701 CrA', 'del Del', 'LM Hya']
+#stars_named = ['del Del', 'LM Hya']
 #for val in stars_named:
-#    try: 
-#        plotsidebysideactual(val)
-#    except Exception as e: 
-#        print(e)
+#   #try: 
+#    plotsidebysideactual(val)
+#   #except Exception as e: 
+#    #    print(e)
     
 #print(getCompositeSine2_second_test("12602250"))
 #print(getCompositeSine2_second_test("12268220"))
@@ -2107,7 +2317,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #print(guess("X Caeli", 1))
 #3429637
 #CompareTelescopes("63122689", "f(t) = 0.1970 * sin(2π * 3.6556 * t + 1.9644) + 0.8538 + 0.0360 * sin(2π * 7.3117 * t + -6.2832) + 0.1561")
-#get_csv_epsilon_value(r"Master_Data_Sets_FULL/KEPLER/KeplerStarsOutput_fixed.csv")
+#get_csv_epsilon_value(r"KeplerStarsOutput.csv")
 #identifyPeaksPowerComp('3429637')
 #print(pt.rcParams.keys())
   # Set y-tick label font size
@@ -2194,48 +2404,14 @@ f(t) = 0.0002 * sin(2π * 1.0098 * t + -0.9006) + 0.1042 + 0.0001 * sin(2π * 2.
 Epsilon: 0.010544980738373127 --> Inspecting chart, it seems like it fluctuates between 0 error to a constant error depending on the region within the light curve
 
 """
-"""
-KIC = "12602250"
-eps = get_epsilon_value(KIC, "f(t) = 0.0004 * sin(2π * 11.6214 * t + 1.8740) + 0.6758 + 0.0002 * sin(2π * 14.9794 * t + 3.3672) + 0.3244")
-half = int(len(eps)/2)
-eps_1_half = eps[:half]
-eps_2_half = eps[half:]
-#print(KIC_list[i])
-print("----------------")
-print(KIC)
-print(f"e_avg: {np.average(eps)}")
-print(f"e_i: {np.average(eps_1_half)}")
-print(f"e_j: {np.average(eps_2_half)}")
-percentage = np.abs(np.average(eps_2_half)-np.average(eps_1_half))/((np.average(eps_1_half) + np.average(eps_2_half))/2)
-percentage *= 100
-percentage = np.abs(percentage)
-print(f" percent: {percentage}")
-print("----------------")
-"""
-#plt.plot(range(len(aps)), aps)
-#plt.show()
-"""
-----------------
-8197761
-e_avg: -0.0020863093667625346
-e_i: -0.01548928348106184
-e_j: 0.01129715532378961
- percent: 1277.9398816032895
-----------------
 
-----------------
-12268220
-e_avg: -0.0010695913984376125
-e_i: 0.0022949294376116503
-e_j: -0.004429214824245174
- percent: 630.1073234131104
-----------------
-----------------
-12602250
-e_avg: 0.008141292553441348
-e_i: 0.014549218416930774
-e_j: 0.0017426940929555455
- percent: 157.21327150761368
-----------------
 
+
+"""
+stars_processed =  ['GN And', 'V0340 And', 'KW Aur', 'iot Boo', 'kap 2 Boo', 'AO CVn', 'bet Cas', 'del Del', 'LM Hya']
+functions_processed = ["f(t) = 0.0063 * sin(2π * 14.4282 * t + 0.7797) + -0.0002", "f(t) = 0.0051 * sin(2π * 22.2584 * t + 6.2832) + 0.0004", "f(t) = 0.0010 * sin(2π * 11.3495 * t + -6.2832) + -0.0000", "f(t) = 0.0002 * sin(2π * 1.0987 * t + 6.2832) + 0.0002 + 0.0001 * sin(2π * 11.2529 * t + -6.2832) + 0.0002 + 0.0001 * sin(2π * 18.3035 * t + -6.2832) + 0.0002", "f(t) = 0.0002 * sin(2π * 1.1884 * t + 6.2832) + 0.0001 + 0.0001 * sin(2π * 1.5484 * t + -6.2832) + 0.0001 + 0.0001 * sin(2π * 1.9670 * t + -6.2832) + 0.0001 + 0.0001 * sin(2π * 7.0882 * t + -6.2832) + 0.0001 + 0.0001 * sin(2π * 14.6102 * t + -6.2832) + 0.0001 + 0.0002 * sin(2π * 15.4326 * t + -6.2832) + 0.0001", "f(t) = 0.0005 * sin(2π * 1.5106 * t + -6.2832) + -0.0000 + 0.0004 * sin(2π * 8.2471 * t + -6.2832) + -0.0000", "f(t) = 0.0011 * sin(2π * 9.8970 * t + -6.2832) + 0.0002", "f(t) = 0.0001 * sin(2π * 1.0756 * t + -6.2832) + -0.0000 + 0.0001 * sin(2π * 1.5539 * t + 6.2832) + -0.0000 + 0.0001 * sin(2π * 2.3647 * t + -6.2832) + -0.0000 + 0.0001 * sin(2π * 6.5413 * t + -6.2832) + -0.0000 + 0.0001 * sin(2π * 12.7654 * t + -6.2832) + -0.0000", "f(t) = 0.0002 * sin(2π * 1.2283 * t + 6.2832) + 0.0000 + 0.0002 * sin(2π * 21.7072 * t + -6.2832) + 0.0000"]
+
+get_epsilon_value_tess_nav(stars_processed, functions_processed)
+#print(len(stars_processed))
+#print(len(functions_processed))
 """
