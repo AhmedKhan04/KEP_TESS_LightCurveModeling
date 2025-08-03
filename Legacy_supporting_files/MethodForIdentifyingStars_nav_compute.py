@@ -53,7 +53,6 @@ def compGetPeriodogramData(nameOfStar):
     search_result = search_result[0]
     print(search_result)
     tpf_collection = search_result.download_all(cutout_size=50)
-    print(f"hello! {len(tpf_collection)}")
     for l in tpf_collection:
         s = unpopular.Source(l.path, remove_bad=True)
         s.set_aperture(rowlims=[25, 26], collims=[25, 26])
@@ -157,7 +156,6 @@ def identifyPeaksPowerComp(nameOfStar):
             else: 
                 filtered_peaks.append(peaks[i])
     if(len(pg.frequency[filtered_peaks]) > 10):
-        print('pokaoapdskoakpsd')
         return -1, 0
     #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
     #pt.xlabel('Frequency (cycles/BKJD)')
@@ -1085,7 +1083,7 @@ def get_epsilon_value(star_name, sine_string):
     #sine_string = sine_string.replace('t', ' * t ')
     sine_string = sine_string.replace("f(t) = ", "")
     #model_profile = eval(sine_string)
-    OFFSET = 2454833
+    OFFSET = 0
     expected_cadence = 1800  # seconds
 
     
@@ -1093,7 +1091,7 @@ def get_epsilon_value(star_name, sine_string):
         """Create a callable function from the sine string"""
         def model(t, dt, *params):
 
-            shifted_t = t + dt + (OFFSET-2457000)
+            shifted_t = t + dt #+ (OFFSET-2457000)
             print(sine_string)
             return eval(sine_string.replace('t', 'shifted_t'))
         return model
@@ -1211,7 +1209,7 @@ def get_epsilon_value_tess_nav(star_name, sine_string_list):
         search_result = search_result[0]
         print(search_result)
         tpf_collection = search_result.download_all(cutout_size=50)
-        print(f"hello! {len(tpf_collection)}")
+        
         for l in tpf_collection:
             s = unpopular.Source(l.path, remove_bad=True)
             s.set_aperture(rowlims=[25, 26], collims=[25, 26])
@@ -1258,7 +1256,7 @@ def get_epsilon_value_tess_nav(star_name, sine_string_list):
             """Create a callable function from the sine string"""
             def model(t, dt, *params):
 
-                shifted_t = t + dt + (OFFSET-2457000)
+                shifted_t = t + dt # + (OFFSET-2457000)
                 print(sine_string)
                 return eval(sine_string.replace('t', 'shifted_t'))
             return model
@@ -1293,15 +1291,15 @@ def get_epsilon_value_tess_nav(star_name, sine_string_list):
         
             if len(time) == 0:
                 continue
-            """
+            
             if abs(time[-1] - start_bxjd - dt) > expected_cadence/86400:
                 continue
             if abs(time[0] - start_bxjd) > expected_cadence/86400:
                 continue
             if np.any(np.diff(time) > expected_cadence/86400):
                 continue
-            """
-            print("hello aspodkasdd")
+            
+        
             t_zeroed = time - time[0]
             
             
@@ -2409,10 +2407,11 @@ Epsilon: 0.010544980738373127 --> Inspecting chart, it seems like it fluctuates 
 
 
 
-
+"""
 stars_processed =  ['GN And', 'V0340 And', 'KW Aur', 'iot Boo', 'kap 2 Boo', 'AO CVn', 'bet Cas', 'del Del', 'LM Hya']
 functions_processed = ["f(t) = 0.0063 * sin(2π * 14.4282 * t + 0.7797) + -0.0002", "f(t) = 0.0051 * sin(2π * 22.2584 * t + 6.2832) + 0.0004", "f(t) = 0.0010 * sin(2π * 11.3495 * t + -6.2832) + -0.0000", "f(t) = 0.0002 * sin(2π * 1.0987 * t + 6.2832) + 0.0002 + 0.0001 * sin(2π * 11.2529 * t + -6.2832) + 0.0002 + 0.0001 * sin(2π * 18.3035 * t + -6.2832) + 0.0002", "f(t) = 0.0002 * sin(2π * 1.1884 * t + 6.2832) + 0.0001 + 0.0001 * sin(2π * 1.5484 * t + -6.2832) + 0.0001 + 0.0001 * sin(2π * 1.9670 * t + -6.2832) + 0.0001 + 0.0001 * sin(2π * 7.0882 * t + -6.2832) + 0.0001 + 0.0001 * sin(2π * 14.6102 * t + -6.2832) + 0.0001 + 0.0002 * sin(2π * 15.4326 * t + -6.2832) + 0.0001", "f(t) = 0.0005 * sin(2π * 1.5106 * t + -6.2832) + -0.0000 + 0.0004 * sin(2π * 8.2471 * t + -6.2832) + -0.0000", "f(t) = 0.0011 * sin(2π * 9.8970 * t + -6.2832) + 0.0002", "f(t) = 0.0001 * sin(2π * 1.0756 * t + -6.2832) + -0.0000 + 0.0001 * sin(2π * 1.5539 * t + 6.2832) + -0.0000 + 0.0001 * sin(2π * 2.3647 * t + -6.2832) + -0.0000 + 0.0001 * sin(2π * 6.5413 * t + -6.2832) + -0.0000 + 0.0001 * sin(2π * 12.7654 * t + -6.2832) + -0.0000", "f(t) = 0.0002 * sin(2π * 1.2283 * t + 6.2832) + 0.0000 + 0.0002 * sin(2π * 21.7072 * t + -6.2832) + 0.0000"]
 
 get_epsilon_value_tess_nav(stars_processed, functions_processed)
 #print(len(stars_processed))
 #print(len(functions_processed))
+"""

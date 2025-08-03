@@ -606,14 +606,14 @@ def get_epsilon_value(star_name, sine_string):
     #sine_string = sine_string.replace('t', ' * t ')
     sine_string = sine_string.replace("f(t) = ", "")
 
-    OFFSET = 2454833
+    OFFSET = 0
     expected_cadence = 1800  # seconds
 
 
     def create_model_function(sine_string):
         """Create a callable function from the sine string"""
         def model(t, dt, *params):
-            shifted_t = t + dt + (OFFSET-2457000)
+            shifted_t = t + dt + (OFFSET)
             print(sine_string)
             return eval(sine_string.replace('t', 'shifted_t'))
         return model

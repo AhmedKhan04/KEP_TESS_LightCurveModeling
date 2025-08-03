@@ -1033,10 +1033,7 @@ def identifyPeaksOfLightcurves_manual(nameofStar,startingTime):
 
 def get_epsilon_value(star_name, sine_string):
 
-    search_result = lk.search_lightcurve(f"KIC {star_name}", quarter=(6,7,8))
-    if (len(search_result) == 0 ):
-        print("full")
-        search_result = lk.search_lightcurve(f"KIC {star_name}")
+    search_result = lk.search_lightcurve(f"KIC {star_name}")
     lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
     print(star_name)
     t = lc.time.value
@@ -2081,7 +2078,7 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
     #pt.show()
 #print(results)
 #get_epsilon_value()
-eps = get_epsilon_value("8197761", "f(t) = 0.0047 * sin(2π * 1.0983 * t + 2.7960) + 0.7343 + 0.0005 * sin(2π * 1.5464 * t + 3.9936) + 0.0798 + 0.0012 * sin(2π * 2.0353 * t + 3.7956) + 0.1853")
+#eps = get_epsilon_value("8197761", "f(t) = 0.0047 * sin(2π * 1.0983 * t + 2.7960) + 0.7343 + 0.0005 * sin(2π * 1.5464 * t + 3.9936) + 0.0798 + 0.0012 * sin(2π * 2.0353 * t + 3.7956) + 0.1853")
 
 
 #eps = get_epsilon_value("12268220", "f(t) = 0.0006 * sin(2π * 1.3580 * t + -0.4060) + 0.2128 + 0.0005 * sin(2π * 1.8051 * t + 6.2832) + 0.1782 + 0.0004 * sin(2π * 2.2606 * t + 1.5659) + 0.1511 + 0.0003 * sin(2π * 2.7156 * t + -1.9018) + 0.1190 + 0.0003 * sin(2π * 3.1640 * t + -1.6757) + 0.0954 + 0.0002 * sin(2π * 22.1534 * t + -0.8883) + 0.0912 + 0.0004 * sin(2π * 23.6299 * t + 1.6420) + 0.1505")
@@ -2197,6 +2194,48 @@ f(t) = 0.0002 * sin(2π * 1.0098 * t + -0.9006) + 0.1042 + 0.0001 * sin(2π * 2.
 Epsilon: 0.010544980738373127 --> Inspecting chart, it seems like it fluctuates between 0 error to a constant error depending on the region within the light curve
 
 """
-#aps = get_epsilon_value("3429637", "f(t) = 0.0022 * sin(2π * 10.3376 * t + -0.2375) + 0.4865 + 0.0005 * sin(2π * 10.9363 * t + -6.2832) + 0.1066 + 0.0018 * sin(2π * 12.4714 * t + -6.2832) + 0.4069")
+"""
+KIC = "12602250"
+eps = get_epsilon_value(KIC, "f(t) = 0.0004 * sin(2π * 11.6214 * t + 1.8740) + 0.6758 + 0.0002 * sin(2π * 14.9794 * t + 3.3672) + 0.3244")
+half = int(len(eps)/2)
+eps_1_half = eps[:half]
+eps_2_half = eps[half:]
+#print(KIC_list[i])
+print("----------------")
+print(KIC)
+print(f"e_avg: {np.average(eps)}")
+print(f"e_i: {np.average(eps_1_half)}")
+print(f"e_j: {np.average(eps_2_half)}")
+percentage = np.abs(np.average(eps_2_half)-np.average(eps_1_half))/((np.average(eps_1_half) + np.average(eps_2_half))/2)
+percentage *= 100
+percentage = np.abs(percentage)
+print(f" percent: {percentage}")
+print("----------------")
+"""
 #plt.plot(range(len(aps)), aps)
 #plt.show()
+"""
+----------------
+8197761
+e_avg: -0.0020863093667625346
+e_i: -0.01548928348106184
+e_j: 0.01129715532378961
+ percent: 1277.9398816032895
+----------------
+
+----------------
+12268220
+e_avg: -0.0010695913984376125
+e_i: 0.0022949294376116503
+e_j: -0.004429214824245174
+ percent: 630.1073234131104
+----------------
+----------------
+12602250
+e_avg: 0.008141292553441348
+e_i: 0.014549218416930774
+e_j: 0.0017426940929555455
+ percent: 157.21327150761368
+----------------
+
+"""
