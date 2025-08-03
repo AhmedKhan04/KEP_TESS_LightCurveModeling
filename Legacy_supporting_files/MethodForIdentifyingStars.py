@@ -1132,7 +1132,7 @@ def get_epsilon_value(star_name, sine_string):
     mask = time_diff > 3000
     gap_indices = np.where(mask)[0]
     segments = np.split(true_time, gap_indices+1)
-    
+    """
     # plotting
     tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5)/100)*100)
     margin = 0.5  # days
@@ -1158,7 +1158,7 @@ def get_epsilon_value(star_name, sine_string):
     x = true_time-tshift + OFFSET - 2400000.5
     pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
     fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
-    
+    """
     return true_time-est_time
 
 
