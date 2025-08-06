@@ -1325,8 +1325,8 @@ def CompareTelescopes(nameOfStar, sine_string):
         a = 1
         signal = lfilter(b, a, signal)
         
-        S_f = np.fft.fft(signal)
-        M_f = np.fft.fft(model)
+        S_f = np.abs(np.fft.rfft(signal))
+        M_f = np.abs(np.fft.rfft(model))
         
        
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
@@ -1378,8 +1378,8 @@ def SpectralResiduals(nameOfStar, sine_string):
         - R2_FFT: float
         """
       
-        S_f = np.fft.fft(signal)
-        M_f = np.fft.fft(model)
+        S_f = np.abs(np.fft.rfft(signal))
+        M_f = np.abs(np.fft.rfft(model))
         
        
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
@@ -1841,8 +1841,8 @@ def tess_clean_MAST(csv_path):
         #a = 1
         #signal = lfilter(b, a, signal)
         
-        S_f = np.fft.fft(signal)
-        M_f = np.fft.fft(model)
+        S_f = np.abs(np.fft.rfft(signal))
+        M_f = np.abs(np.fft.rfft(model))
         
         
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
