@@ -4,7 +4,7 @@ Created on Tue Aug 13 12:04:19 2024
 
 @author: ahmed
 """
-
+import re
 import numpy as np
 import matplotlib.pyplot as pt 
 import lightkurve as lk 
@@ -600,6 +600,17 @@ def get_epsilon_value(star_name, sine_string):
     search_result = lk.search_lightcurve(f"KIC {star_name}")
     lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
     t = lc.time.value
+    pattern = r'([+-]?\d*\.?\d+)\s*\*\s*sin\s*\(\s*2π\s*\*\s*([+-]?\d*\.?\d+)'  
+    matches = re.findall(pattern, sine_string)
+    if not matches:
+        print(f"{star_name} did not work")
+        return [-1], -1, -1
+    amp_freq_pairs = [(abs(float(amp)), float(freq)) for amp, freq in matches]
+    max_amp, max_freq = max(amp_freq_pairs, key=lambda x: x[0])
+    dsct_per =  1.0 / max_freq
+
+
+
 
     sine_string = sine_string.replace('sin', 'np.sin')
     sine_string = sine_string.replace('2π', '2 * np.pi ')
@@ -657,7 +668,7 @@ def get_epsilon_value(star_name, sine_string):
         t_zeroed = time - time[0]
         
       
-        t0_list = np.arange(-4,4) * 0.1 + time[0] + np.random.normal(0.01, 0.05)
+        t0_list = time[0] + np.linspace(-0.45,0.45,4) * dsct_per
         t_est_list = []
         
         for t0 in t0_list:
@@ -688,11 +699,12 @@ def get_epsilon_value(star_name, sine_string):
     mask = time_diff > 3000
     gap_indices = np.where(mask)[0]
     segments = np.split(true_time, gap_indices+1)
-    """
+   
     # plotting
     tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5)/100)*100)
     margin = 0.5  # days
-    
+
+    """
     fig_oc, axs = pt.subplots(1, len(segments), figsize=(8,3), sharey=True, 
                             gridspec_kw={'wspace': 0, 'hspace': 0},
                             width_ratios=[seg[-1]-seg[0] + margin*2 for seg in segments])
@@ -715,7 +727,21 @@ def get_epsilon_value(star_name, sine_string):
     pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
     fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
     """
-    return true_time-est_time
+    data = true_time-est_time
+    m, b = np.polyfit(true_time-tshift + OFFSET - 2400000.5, data, 1)
+    x = true_time-tshift + OFFSET - 2400000.5
+
+    #pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
+    #fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
+
+
+
+    regression = x*m + b 
+    residuals = data - regression 
+    sig = np.std(residuals)
+    #print(f" normalized eps {np.mean(true_time-est_time)/dsct_per}")
+    return true_time-est_time, sig, m
+
 
 def guess_baseline(nameOfStar):
     """
@@ -821,17 +847,17 @@ def get_csv_epsilon_value(csv_file_path):
         i = 0 
         master_list_eps = []
         while( i < len(KIC_list)):
-            eps = get_epsilon_value(KIC_list[i], FUNCTION_list[i])
+            eps, sig, m = get_epsilon_value(KIC_list[i], FUNCTION_list[i])
             if(i>0):
                 pt.close('all')
             
-            half = int(len(eps)/2)
-            eps_1_half = eps[:half]
-            eps_2_half = eps[half:]
-            print(np.average(eps))
-            print(np.average(eps_1_half))
-            print(np.average(eps_2_half))
-            master_list_eps.append({"KIC": KIC_list[i], "average eps": np.average(eps), "1 Half": np.average(eps_1_half), "2 Half": np.average(eps_2_half)})
+            print(KIC_list[i])
+            print(f"average eps {np.average(eps)}")
+            print(f"standard dev {sig}")
+            print(f"coeff variance {np.abs(sig/np.average(eps))}")
+            print(f"slope {m}")
+            print(f"slope normalized {m/np.average(eps)}")
+            master_list_eps.append({"KIC": KIC_list[i], "average eps": np.average(eps), "slope": m, "slope/eps": m/np.average(eps),"standard dev": sig, "coeff variance": np.abs(sig/np.average(eps))})
             i += 1
         df = pd.DataFrame(master_list_eps)
         df.to_csv('KeplerStarsOutput_EPS_VALS.csv', index=False)
@@ -945,7 +971,7 @@ def SpectralResiduals(nameOfStar, sine_string):
         return normalized
     """
 
-    def spectral_goodness_of_fit(signal, model):
+    def spectral_goodness_of_fit(time, lc, model):
         """
         Computes the spectral residual and normalized R^2_FFT goodness-of-fit
         between the signal and the model.
@@ -959,21 +985,20 @@ def SpectralResiduals(nameOfStar, sine_string):
         - R2_FFT: float
         """
       
-        S_f = np.abs(np.fft.rfft(signal))
-        M_f = np.abs(np.fft.rfft(model))
-        
-       
+        lc_mod = lk.LightCurve(time=time, flux=model)
+        pg_obs = lc.to_periodogram()
+        pg_mod = lc_mod.to_periodogram(frequency = pg_obs.frequency)
+        S_f = pg_obs.power.value/np.max(pg_obs.power.value)
+        M_f = pg_mod.power.value/np.max(pg_mod.power.value)
+        signal  = lc.flux.value/np.percentile(lc.flux.value, 90)
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
-        
-      
-        S_bar = np.mean(S_f)
+        S_bar = np.mean(signal)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
         R2_FFT = 1 - (spectral_residual / normalization)
         
         return spectral_residual, R2_FFT
     
-    spec_res, R2 = spectral_goodness_of_fit(signal, model)
-    print(spec_res, R2)
+    spec_res, R2 = spectral_goodness_of_fit(t, lc, model)
     return spec_res, R2
     
 def SpectralResidualsCsvBased(csv_file_path): 
@@ -1118,9 +1143,9 @@ def cleaning_tess(csv_path):
     df = pd.read_csv(csv_path)
     
 
-    TIC_list = df['TIC'].dropna().astype(str).tolist()[50:]
-    KIC_list = df['KIC'].dropna().astype(str).tolist()[50:]
-    FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()[50:]
+    TIC_list = df['TIC'].dropna().astype(str).tolist()
+    KIC_list = df['KIC'].dropna().astype(str).tolist()
+    FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
     i = 0 
     master_lists_tess_pop = []
  
@@ -1137,34 +1162,46 @@ def cleaning_tess(csv_path):
         - spectral_residual: float
         - R2_FFT: float
         """
+
+        time = np.array(time)
+        signal = np.array(signal)
+        model = np.array(model)
+        mask = np.isfinite(signal) & np.isfinite(model) & np.isfinite(time)
+        time = time[mask]
+        signal = signal[mask]
+
+        model = model[mask]
+        lc_mod = lk.LightCurve(time = time, flux = model)
+        lc_obs = lk.LightCurve(time = time, flux = signal)
+        pg_obs = lc_obs.to_periodogram()
+        pg_mod = lc_mod.to_periodogram(frequency = pg_obs.frequency)
+        obs_power = np.array(pg_obs.power.value)
+        mod_power = np.array(pg_mod.power.value)
+        obs_power = np.nan_to_num(obs_power, nan=0.0)
+        mod_power = np.nan_to_num(mod_power, nan=0.0)
+        obs_power[obs_power < 0] = 0
+        mod_power[mod_power < 0] = 0
+        S_f = obs_power / np.max(obs_power)
+        M_f = mod_power / np.max(mod_power)
         
-        #n = 5  
-        #b = [1.0 / n] * n
-        #a = 1
-        #signal = lfilter(b, a, signal)
-        #pt.plot(np.arange(len(signal)), signal)
-        #pt.show()
-        S_f = np.abs(np.fft.rfft(signal))
-        pt.plot(np.arange(len(S_f)),S_f/np.max(S_f), color = 'red', label = 'signal')
-        M_f = np.abs(np.fft.rfft(model))
-        pt.plot(np.arange(len(M_f)),M_f/np.max(M_f), color = 'orange', label = 'model')
         def FilterPeaksfft(fft, scalar = 0.4):
             fft /= np.max(fft)
-            peaks, _= find_peaks(fft, prominence=np.max(fft) * scalar)#height=[np.max(fft) * 0.55, np.max(fft) * 1.1])
+            peaks, _= find_peaks(fft, prominence=np.max(fft) * scalar)
             if(len(peaks) == 0):
+                print("using max")
                 peaks = [np.argmax(fft)]
-
+                print(peaks)
             peak_amps = fft[peaks]
             filtered_fft = np.zeros(len(fft))
-            #peak_index = peaks
+
             for peak_index in peaks:
                 if peak_index < 100:
                     continue
                 filtered_fft[peak_index - 25: peak_index+25] = fft[peak_index-25:peak_index+25]
             return filtered_fft
         S_f = FilterPeaksfft(S_f)
-        M_f = FilterPeaksfft(M_f, scalar = 0.2)
-        signal = np.fft.ifft(S_f)
+        M_f = FilterPeaksfft(M_f, scalar = 0.15)
+        signal = (master_flux/np.percentile(master_flux, 90))
 
         pt.plot(np.arange(len(M_f)), S_f, label = 'Signal_clean')
         pt.plot(np.arange(len(M_f)), M_f, label = 'Model_clean')
@@ -1179,9 +1216,9 @@ def cleaning_tess(csv_path):
       
         S_bar = np.mean(signal)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
-        R2_FFT = 1 - (spectral_residual / normalization)
+        R2_LSP = 1 - (spectral_residual / normalization)
         
-        return spectral_residual, R2_FFT
+        return spectral_residual, R2_LSP
     
     while( i < len(KIC_list)):
         try:
@@ -1190,7 +1227,8 @@ def cleaning_tess(csv_path):
             sine_string = FUNCTION_list[i]
             pt.close('all')
 
-            search_result = lk.search_tesscut(target=f"TIC{TIC_list[i]}", sector  = [14,15] )
+            result = lk.search_tesscut(f"TIC{TIC_list[i]}")
+            search_result = result.table['sequence_number']
             
             print(search_result)
             tpf_collection = search_result.download_all(cutout_size=50)
@@ -1221,15 +1259,15 @@ def cleaning_tess(csv_path):
             print(sine_string)
             model = eval(sine_string)
             model = 2 * (model - np.min(model)) / (np.max(model) - np.min(model)) - 1
-          
-            spec, R2  = spectral_goodness_of_fit(master_flux, model )
+            master_flux = 2 * (master_flux - np.min(master_flux)) / (np.max(master_flux) - np.min(master_flux)) - 1
+            spec, R2  = spectral_goodness_of_fit(master_time, master_flux, model)
             print(spec, R2)
-            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2FFT": R2})
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2LSP": R2})
             pt.title(f"TIC {TIC_list[i]} | KIC {KIC_list[i]}")
             i+=1
 
         except Exception as the_exception:
-            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": 0,"R2FFT": -1})
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": 0,"R2LSP": -1})
             print('did not find')
             print(the_exception)
             df = pd.DataFrame(master_lists_tess_pop)
@@ -1259,13 +1297,46 @@ def cleaning_tess_plotting(csv_path):
     i = 0 
     master_lists_tess_pop = []
     
-    def spectral_goodness_of_fit(signal, model, master_time):
-        dt = master_time[1] - master_time[0]
-        S_f = np.abs(np.fft.rfft(signal))
-        x_axis = np.fft.rfftfreq(n=2*len(S_f)-1, d = dt)
-        pt.plot(x_axis,S_f/np.max(S_f), color = 'red', label = 'TESS Light Curve')
-        M_f = np.abs(np.fft.rfft(model))
-        pt.plot(x_axis,M_f/np.max(M_f), color = 'orange', label = 'Model')
+
+    def spectral_goodness_of_fit(time, signal, model):
+        """
+        Computes the spectral residual and normalized R^2_FFT goodness-of-fit
+        between the signal and the model.
+        
+        Parameters:
+        - signal: numpy array, the observed signal
+        - model: numpy array, the modeled signal
+        
+        Returns:
+        - spectral_residual: float
+        - R2_FFT: float
+        """
+
+        time = np.array(time)
+        signal = np.array(signal)
+        model = np.array(model)
+        print(len(signal))
+        mask = np.isfinite(signal) & np.isfinite(model) & np.isfinite(time)
+        time = time[mask]
+        
+        signal = signal[mask]
+        print(len(signal))
+        model = model[mask]
+        lc_mod = lk.LightCurve(time = time, flux = model)
+        lc_obs = lk.LightCurve(time = time, flux = signal)
+        pg_obs = lc_obs.to_periodogram()
+        pg_mod = lc_mod.to_periodogram(frequency = pg_obs.frequency)
+        obs_power = np.array(pg_obs.power.value)
+        mod_power = np.array(pg_mod.power.value)
+        obs_power = np.nan_to_num(obs_power, nan=0.0)
+        mod_power = np.nan_to_num(mod_power, nan=0.0)
+        obs_power[obs_power < 0] = 0
+        mod_power[mod_power < 0] = 0
+        S_f = obs_power / np.max(obs_power)
+        M_f = mod_power / np.max(mod_power)
+        pt.plot(pg_obs.frequency.value,S_f, color = 'red', label = 'signal')
+        pt.plot(pg_obs.frequency.value,M_f, color = 'orange', label = 'model')
+        
         def FilterPeaksfft(fft, scalar = 0.4):
             fft /= np.max(fft)
             peaks, _= find_peaks(fft, prominence=np.max(fft) * scalar)
@@ -1280,11 +1351,12 @@ def cleaning_tess_plotting(csv_path):
             return filtered_fft
         S_f = FilterPeaksfft(S_f)
         M_f = FilterPeaksfft(M_f, scalar = 0.2)
-        signal = np.fft.ifft(S_f)
+        M_f = FilterPeaksfft(M_f, scalar = 0.15)
+        signal = (master_flux/np.percentile(master_flux, 90))
 
-        pt.plot(x_axis, S_f, label = 'Filtered TESS Light Curve')
-        pt.plot(x_axis, M_f, label = 'Filtered Model')
-        pt.title(f"FFT for KIC {KIC_list[i]} and TIC {TIC_list[i]}")
+        pt.plot(pg_obs.frequency.value, S_f, label = 'Signal_clean')
+        pt.plot(pg_obs.frequency.value, M_f, label = 'Model_clean')
+        pt.title(f"KIC {KIC_list[i]} | TIC {TIC_list[i]}")
         pt.xlabel('Frequency (cycles/BKJD)')
         pt.ylabel('Normalized Power')
         pt.legend()
@@ -1292,9 +1364,9 @@ def cleaning_tess_plotting(csv_path):
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
         S_bar = np.mean(signal)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
-        R2_FFT = 1 - (spectral_residual / normalization)
+        R2_LSP = 1 - (spectral_residual / normalization)
         
-        return spectral_residual, R2_FFT
+        return spectral_residual, R2_LSP
     
     while( i < len(KIC_list)):
         try:
@@ -1303,11 +1375,10 @@ def cleaning_tess_plotting(csv_path):
             sine_string = FUNCTION_list[i]
             pt.close('all')
 
-            search_result = lk.search_tesscut(target=f"TIC{TIC_list[i]}", sector  = [14,15] )
-            
-            print(search_result)
+            result = lk.search_tesscut(f"TIC{TIC_list[i]}")
+            search_result = result.table['sequence_number']
             tpf_collection = search_result.download_all(cutout_size=50)
-            
+
             for l in tpf_collection:
                 s = unpopular.Source(l.path, remove_bad=True)
                 s.set_aperture(rowlims=[25, 26], collims=[25, 26])
@@ -1340,7 +1411,10 @@ def cleaning_tess_plotting(csv_path):
             print(sine_string)
             model = eval(sine_string)
             model = 2 * (model - np.min(model)) / (np.max(model) - np.min(model)) - 1
-            
+            master_flux = 2 * (master_flux - np.min(master_flux)) / (np.max(master_flux) - np.min(master_flux)) - 1
+            spec, R2  = spectral_goodness_of_fit(master_time, master_flux, model )
+            print(spec, R2)
+            master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2LSP": R2})
             spec, R2  = spectral_goodness_of_fit(master_flux, model, master_time )
             print(spec, R2)
             master_lists_tess_pop.append({"KIC": KIC_list[i],"TIC": TIC_list[i],"spectral_res": spec,"R2FFT": R2})
