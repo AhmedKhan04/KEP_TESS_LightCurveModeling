@@ -593,7 +593,8 @@ def get_epsilon_value(star_name, sine_string):
     
     Returns:
         epsilon_values (np.array): array containing all epsilon values
-    
+        standard_deviation (float): standard deviation of the residuals of epsilon values from the linear trend line
+        slope_fit (float): slope of linear trendline of epsilon values
     
     """
 
@@ -741,7 +742,6 @@ def get_epsilon_value(star_name, sine_string):
     sig = np.std(residuals)
     #print(f" normalized eps {np.mean(true_time-est_time)/dsct_per}")
     return true_time-est_time, sig, m
-
 
 def guess_baseline(nameOfStar):
     """
@@ -943,7 +943,7 @@ def seriesofstars_deep(listofstars):
 
 def SpectralResiduals(nameOfStar, sine_string): 
     """
-    Given a star and its predictive model, generates the R2_FFT value between it and its light curve
+    Given a star and its predictive model, generates the R2_LSP value between it and its light curve
 
     Args:
         nameOfStar (str): name of star desired in KIC
@@ -952,7 +952,7 @@ def SpectralResiduals(nameOfStar, sine_string):
     
     Returns:
         spec_res (float): spectral residuals between light curve and predictive model
-        R2 (float): Normalized R2_FFT value between light curve and predictive model
+        R2 (float): Normalized R2_LSP value between light curve and predictive model
     
     """
     lc = lk.search_lightcurve(f"KIC {nameOfStar}").download_all().stitch().remove_outliers(sigma = 5.0)
@@ -973,16 +973,17 @@ def SpectralResiduals(nameOfStar, sine_string):
 
     def spectral_goodness_of_fit(time, lc, model):
         """
-        Computes the spectral residual and normalized R^2_FFT goodness-of-fit
+        Computes the spectral residual and normalized R^2_LSP goodness-of-fit
         between the signal and the model.
         
         Parameters:
-        - signal: numpy array, the observed signal
+        - time: numpy array, the time array of the signal
+        - lc: lightcurve object
         - model: numpy array, the modeled signal
         
         Returns:
         - spectral_residual: float
-        - R2_FFT: float
+        - R2_LSP: float
         """
       
         lc_mod = lk.LightCurve(time=time, flux=model)
@@ -994,16 +995,16 @@ def SpectralResiduals(nameOfStar, sine_string):
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
         S_bar = np.mean(signal)
         normalization = np.sum(np.abs(S_f - S_bar)**2)
-        R2_FFT = 1 - (spectral_residual / normalization)
+        R2_LSP = 1 - (spectral_residual / normalization)
         
-        return spectral_residual, R2_FFT
+        return spectral_residual, R2_LSP
     
     spec_res, R2 = spectral_goodness_of_fit(t, lc, model)
     return spec_res, R2
     
 def SpectralResidualsCsvBased(csv_file_path): 
     """
-    Given csv of names of stars and their corresponding predictive model, generates the R2_FFT value between them and their light curve
+    Given csv of names of stars and their corresponding predictive model, generates the R2_LSP value between them and their light curve
 
     Args:
         csv_file_path (str): path to csv file input
@@ -1031,7 +1032,7 @@ def SpectralResidualsCsvBased(csv_file_path):
             #print(np.average(eps))
             #print(np.average(eps_1_half))
             #print(np.average(eps_2_half))
-            master_list_eps.append({"KIC": KIC_list[i], "Spectral Residuals": spectral_resid, "R2_FFT": R2})
+            master_list_eps.append({"KIC": KIC_list[i], "Spectral Residuals": spectral_resid, "R2_LSP": R2})
             i += 1
         df = pd.DataFrame(master_list_eps)
         df.to_csv('KeplerStarsOutput_Spectral_residual_VALS.csv', index=False)
@@ -1132,7 +1133,7 @@ def plotMap():
 def cleaning_tess(csv_path):
     """
     Given a csv containing KIC, TIC and predictive models for a series of stars, cleans the corresponding TESS data 
-    and calculates the R2_FFT values. Saves it to an CSV output.
+    and calculates the R2_LSP values. Saves it to an CSV output.
 
     Args:
         csv_path (str): path to the csv file as input
@@ -1151,16 +1152,17 @@ def cleaning_tess(csv_path):
  
     def spectral_goodness_of_fit(signal, model):
         """
-        Computes the spectral residual and normalized R^2_FFT goodness-of-fit
+        Computes the spectral residual and normalized R^2_LSP goodness-of-fit
         between the signal and the model.
         
         Parameters:
-        - signal: numpy array, the observed signal
+        - time: numpy array, the time array of the signal
+        - lc: lightcurve object
         - model: numpy array, the modeled signal
         
         Returns:
         - spectral_residual: float
-        - R2_FFT: float
+        - R2_LSP: float
         """
 
         time = np.array(time)
@@ -1300,16 +1302,17 @@ def cleaning_tess_plotting(csv_path):
 
     def spectral_goodness_of_fit(time, signal, model):
         """
-        Computes the spectral residual and normalized R^2_FFT goodness-of-fit
+        Computes the spectral residual and normalized R^2_LSP goodness-of-fit
         between the signal and the model.
         
         Parameters:
-        - signal: numpy array, the observed signal
+        - time: numpy array, the time array of the signal
+        - lc: lightcurve object
         - model: numpy array, the modeled signal
         
         Returns:
         - spectral_residual: float
-        - R2_FFT: float
+        - R2_LSP: float
         """
 
         time = np.array(time)

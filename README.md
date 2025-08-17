@@ -1,6 +1,6 @@
 # 🌠🔭 Assessing the Predictability of 𝛿 Scuti Variable Stars for Spacecraft Navigation
 
-We assess the predictability of a large dataset of δ scuti variable stars in detail. Few methods currently exist that can reliably determine the stability or predict the luminosity behavior of δ scuti variable stars. To address this, we develop a computational framework to identify δ scuti variable stars whose luminosity behavior can be accurately modeled as superpositions of sinusoidal functions. These predictive models provide a foundation for identifying δ scuti variable stars suitable for use in practical applications such as autonomous deep-space navigation systems for spacecraft, which rely on such stars as navigational aid. This project provides the computational framework for **modeling the light curves of δ scuti variable stars** outlined in the study. 
+We assess the predictability of a large dataset of δ Scuti variable stars in detail. Few methods currently exist that can reliably determine the stability or predict the luminosity behavior of δ Scuti variable stars. To address this, we develop a computational framework to identify δ Scuti variable stars whose luminosity behavior can be accurately modeled as superpositions of sinusoidal functions. These predictive models provide a foundation for identifying δ Scuti variable stars suitable for use in practical applications such as autonomous deep-space navigation systems for spacecraft, which rely on such stars as navigational aid. This project provides the computational framework for **modeling the light curves of δ Scuti variable stars** outlined in the study. 
 
 [![DOI](https://zenodo.org/badge/925039502.svg)](https://doi.org/10.5281/zenodo.16427747)
 
@@ -11,10 +11,10 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 - ``` bash
   final_code_base.py
   ```
-  This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **δ scuti variable stars**. It includes:
+  This is the **main script** that contains all the **methods** used to model, assess and analyze the light curves of **δ Scuti variable stars**. It includes:
 
   - Algorithms to model light curves as superpositions of sinusodial functions
-  - R²_fft and epsilon time error analysis
+  - R²_LSP and epsilon time error analysis
   - Detrending of TESS light curves and model accuracy assessment 
   - Plotting and interactive tools for light curves, target pixel files and periodograms
 
@@ -22,7 +22,7 @@ We assess the predictability of a large dataset of δ scuti variable stars in de
 - ``` bash
   Master_Data_Sets_FULL
   ```
-  This directory contains the **entire data set of analyzed δ scuti variable stars**, including:
+  This directory contains the **entire data set of analyzed δ Scuti variable stars**, including:
 
   - Cleaned light curve datasets
   - Star metadata (e.g., KIC IDs, TIC IDs, pulsation modes, magnitudes in Kepler photometric band, etc.)
@@ -79,9 +79,10 @@ python final_code_base.py
 
 ### 🌌 Sample Usage
 
-Here is an example of using the framework within `final_code_base.py` to model a δ scuti variable star:
+Here is an example of using the framework within `final_code_base.py` to model a δ Scuti variable star:
 
 ```python
+import re
 import numpy as np
 import matplotlib.pyplot as pt 
 import lightkurve as lk 
@@ -107,11 +108,11 @@ predictive_model_array, light_curve, predictive_model_string = getCompositeSine2
 plotsidebyside_deep(name_star)
 
 # Extract epsilon values
-epsilon_array = get_epsilon_value(name_star, predictive_model_string)
+epsilon_array, standard_deviation, slope_fit = get_epsilon_value(name_star, predictive_model_string)
 
-# Produce the R^2_FFT and spectral residual value between the light curve and the predictive model
+# Produce the R^2_LSP and spectral residual value between the light curve and the predictive model
 
-spectral_residuals, R2_FFT = SpectralResiduals(name_star, predictive_model_string)
+spectral_residuals, R2_LSP = SpectralResiduals(name_star, predictive_model_string)
 
 ```
 
