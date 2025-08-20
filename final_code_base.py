@@ -605,7 +605,7 @@ def get_epsilon_value(star_name, sine_string):
     matches = re.findall(pattern, sine_string)
     if not matches:
         print(f"{star_name} did not work")
-        return [-1], -1, -1
+        return [-1], -1, -1, -1
     amp_freq_pairs = [(abs(float(amp)), float(freq)) for amp, freq in matches]
     max_amp, max_freq = max(amp_freq_pairs, key=lambda x: x[0])
     dsct_per =  1.0 / max_freq
@@ -741,7 +741,7 @@ def get_epsilon_value(star_name, sine_string):
     residuals = data - regression 
     sig = np.std(residuals)
     #print(f" normalized eps {np.mean(true_time-est_time)/dsct_per}")
-    return true_time-est_time, sig, m
+    return true_time-est_time, sig, m, dsct_per
 
 def guess_baseline(nameOfStar):
     """
@@ -847,17 +847,17 @@ def get_csv_epsilon_value(csv_file_path):
         i = 0 
         master_list_eps = []
         while( i < len(KIC_list)):
-            eps, sig, m = get_epsilon_value(KIC_list[i], FUNCTION_list[i])
+            eps, sig, m, P_max = get_epsilon_value(KIC_list[i], FUNCTION_list[i])
             if(i>0):
                 pt.close('all')
             
             print(KIC_list[i])
             print(f"average eps {np.average(eps)}")
             print(f"standard dev {sig}")
-            print(f"coeff variance {np.abs(sig/np.average(eps))}")
+            print(f"standard dev normalized {np.abs(sig/P_max)}")
             print(f"slope {m}")
-            print(f"slope normalized {m/np.average(eps)}")
-            master_list_eps.append({"KIC": KIC_list[i], "average eps": np.average(eps), "slope": m, "slope/eps": m/np.average(eps),"standard dev": sig, "coeff variance": np.abs(sig/np.average(eps))})
+            print(f"slope normalized {m/P_max}")
+            master_list_eps.append({"KIC": KIC_list[i], "average eps": np.average(eps), "slope": m, "slope/P_MAX": m/P_max,"standard dev": sig, "standard dev/P_MAX": np.abs(sig/P_max)})
             i += 1
         df = pd.DataFrame(master_list_eps)
         df.to_csv('KeplerStarsOutput_EPS_VALS.csv', index=False)
