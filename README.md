@@ -108,7 +108,7 @@ predictive_model_array, light_curve, predictive_model_string = getCompositeSine2
 plotsidebyside_deep(name_star)
 
 # Extract epsilon values
-epsilon_array, standard_deviation, slope_fit = get_epsilon_value(name_star, predictive_model_string)
+epsilon_array, standard_deviation, slope_fit, P_MAX = get_epsilon_value(name_star, predictive_model_string)
 
 # Produce the R^2_LSP and spectral residual value between the light curve and the predictive model
 
