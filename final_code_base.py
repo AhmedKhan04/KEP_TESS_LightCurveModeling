@@ -595,6 +595,7 @@ def get_epsilon_value(star_name, sine_string):
         epsilon_values (np.array): array containing all epsilon values
         standard_deviation (float): standard deviation of the residuals of epsilon values from the linear trend line
         slope_fit (float): slope of linear trendline of epsilon values
+        dsct_per (float): period of the most dominant pulsation mode within the predictive model
     
     """
 
