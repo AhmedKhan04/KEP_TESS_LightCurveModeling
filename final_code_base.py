@@ -717,7 +717,7 @@ def get_epsilon_value(star_name, sine_string):
     for ii, ax in enumerate(axs):
         ax.scatter(true_time-tshift + OFFSET - 2400000.5, true_time-est_time, c='k', s=0.5, label = "Phase Shift (BKJD Days)")
         if ii == 0:
-            ax.set_ylabel('Epsilon (BKJD days)')
+            ax.set_ylabel(r'$\epsilon_{d}$ (Days)')
           
             pt.title(f"Epsilon Values for KIC {star_name}")
         ax.set_xlim(segments[ii][0]-tshift + OFFSET - 2400000.5 - margin, 
@@ -1234,7 +1234,7 @@ def cleaning_tess(csv_path):
             search_result = result.table['sequence_number']
             
             print(search_result)
-            tpf_collection = search_result.download_all(cutout_size=50)
+            tpf_collection = result.download_all(cutout_size=50)
             
             for l in tpf_collection:
                 s = unpopular.Source(l.path, remove_bad=True)
@@ -1381,7 +1381,7 @@ def cleaning_tess_plotting(csv_path):
 
             result = lk.search_tesscut(f"TIC{TIC_list[i]}")
             search_result = result.table['sequence_number']
-            tpf_collection = search_result.download_all(cutout_size=50)
+            tpf_collection = result.download_all(cutout_size=50)
 
             for l in tpf_collection:
                 s = unpopular.Source(l.path, remove_bad=True)

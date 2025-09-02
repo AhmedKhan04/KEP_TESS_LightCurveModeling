@@ -41,16 +41,25 @@ def getPeriodogramData(nameOfStar):
     z.plot(scale = 'log')
     #return z
 
-def compGetPeriodogramData(nameOfStar): 
-    x = lk.search_targetpixelfile(nameOfStar).download().to_lightcurve()
-    y = lk.search_lightcurve(nameOfStar).download_all().stitch().remove_outliers(sigma = 5.0)
-    #print(lk.search_lightcurve(nameOfStar)) 
-    #y = lk.search_lightcurve(nameOfStar, author = ["EVEREST","TESS-SPOC", "SPOC"]).download_all().stitch().remove_outliers(sigma = 5.0)
-    #print(y.author)
-    ## quarter term ^^^  y = lk.search_lightcurve(nameOfStar, quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
-    z = x.to_periodogram()
-    #z.smooth(method='logmedian', filter_width=0.1).plot(linewidth=2,  color='red', label='Smoothed', scale='log')
-    return z, y
+def compGetPeriodogramData(nameOfStar):
+    #lc_search = lk.search_lightcurve(nameOfStar, mission="K2")
+    #if len(lc_search) == 0:
+    #    raise ValueError(f"No K2 light curve found for {nameOfStar}")
+    if (nameOfStar.startswith('V')):
+        df = pd.read_csv(fr'{nameOfStar}_SC_C4_SYDSAP.csv')
+
+        lc = lk.LightCurve(time = df['time'], flux = df['flux'],flux_err = df['flux_err'])  # preprocessed flux
+    else: 
+        lc_search = lk.search_lightcurve(nameOfStar, cadence='short')
+        print(lc_search)
+        lc = lc_search.download()
+    lc = lc.remove_nans().remove_outliers(sigma=5.0)
+    lc = lc.normalize()
+    time = np.array(lc.time.value, dtype=float)
+    flux = np.array(lc.flux.value, dtype=float)
+    periodogram = lc.to_periodogram()
+    
+    return periodogram, lc
 
 def GetProperites(periodogram):
     periodogram.show_properties()
@@ -62,7 +71,7 @@ def GetProperites(periodogram):
 def sine_model(t, amplitude, phase, frequency, offset):
     return amplitude * np.sin(2 * np.pi * frequency * t + phase) + offset
 
-def identifyPeaks(nameOfStar, lowerscalar = 0.1):
+def identifyPeaks(nameOfStar, lowerscalar = 0.3):
     pg, lightc = compGetPeriodogramData(nameOfStar)
     max_power = np.max(pg.power.value)
     peaks, _ = find_peaks(pg.power, height=[max_power * lowerscalar, max_power * 1.1])
@@ -99,15 +108,15 @@ def identifyPeaks(nameOfStar, lowerscalar = 0.1):
 def identifyPeaksPowerComp(nameOfStar):
     pg, ltcurves = compGetPeriodogramData(nameOfStar)
     max_power = np.max(pg.power.value)
-    peaks, _ = find_peaks(pg.power, height=[max_power * 0.1, max_power * 1.1])
-    #pt.figure(figsize=(10, 6))
-    #pt.plot(pg.frequency, pg.power, label='Periodogram')
+    peaks, _ = find_peaks(pg.power, height=[max_power * 0.3, max_power * 1.1])
+    pt.figure(figsize=(10, 6))
+    pt.plot(pg.frequency, pg.power, label='Periodogram')
     x = pg.frequency[peaks]
     #for i in x:
      #   print(i.value)
     y = pg.power[peaks]
     filtered_peaks = []
-   
+    
     for i in range(len(x)):
         if len(filtered_peaks) == 0:
             if(x[i].value >= 1):
@@ -119,14 +128,16 @@ def identifyPeaksPowerComp(nameOfStar):
                     filtered_peaks[-1]= peaks[i]
             else: 
                 filtered_peaks.append(peaks[i])
+    
     if(len(pg.frequency[filtered_peaks]) > 10):
+        print(len(pg.frequency[filtered_peaks]))
         return -1, 0
-    #pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
-    #pt.xlabel('Frequency (cycles/BKJD)')
-    #pt.ylabel('Power')
-    #pt.title('Periodogram with Local Maxima: '+ nameOfStar)
-    #pt.legend()
-    #pt.show()
+    pt.scatter(pg.frequency[filtered_peaks], pg.power[filtered_peaks], color='red', zorder=5, label='Local Maxima')
+    pt.xlabel('Frequency (cycles/BKJD)')
+    pt.ylabel('Power')
+    pt.title('Periodogram with Local Maxima: '+ nameOfStar)
+    pt.legend()
+    pt.show()
     print(pg.frequency[filtered_peaks])
     print(pg.power[filtered_peaks])
     return(pg.power[filtered_peaks], ltcurves)
@@ -672,9 +683,10 @@ def getCompositeSine2(a):
 
 def getCompositeSine2_second_test(a):
         powerOfPeaks, _ = identifyPeaksPowerComp(a)
-        if(powerOfPeaks == -1):
-            return [-10], 0,"0"
+        #if(powerOfPeaks == [-1]):
+        #    return [-10], 0,"0"
         print(len(powerOfPeaks))
+
         powerOfPeaks = powerOfPeaks.value
         frequencyfitted2, search_result2, powers2 = identifyPeaks(a)
         amplitude_scale = 0.5
@@ -689,13 +701,13 @@ def getCompositeSine2_second_test(a):
         p = 0 
         total_weight = np.sum(powerOfPeaks)
         sine_print_terms = []
-
+        print(listofsines)
         
         while (p < len(listofsines)):
            
             amplitude, phase, frequency, offset = listofsines[p]
             sinInterpolated = amplitude * np.sin(2 * np.pi * frequency * time + phase) + offset
-            weight = powerOfPeaks[p]  
+            weight = powers2[p]  
             amplitude = amplitude * (weight/total_weight)
             offset = offset * (weight/total_weight)
             addedTogether += (weight/total_weight) * sinInterpolated
@@ -1034,13 +1046,21 @@ def identifyPeaksOfLightcurves_manual(nameofStar,startingTime):
 
 
 def get_epsilon_value(star_name, sine_string):
-    search_result = lk.search_lightcurve(f"KIC {star_name}")
-    lc = search_result.download_all().stitch().remove_outliers(sigma = 5.0)
+    if (star_name.startswith('V')):
+        df = pd.read_csv(fr'{star_name}_SC_C4_SYDSAP.csv')
+
+        lc = lk.LightCurve(time = df['time'], flux = df['flux'],flux_err = df['flux_err'])  # preprocessed flux
+    else: 
+        lc_search = lk.search_lightcurve(star_name, cadence='short')
+        print(lc_search)
+        lc = lc_search.download()
+    lc = lc.remove_nans().remove_outliers()
+    #lc = lk.LightCurve(time = df['time'], flux = df['flux'],flux_err = df['flux_err']).remove_nans().remove_outliers()
 
     print(star_name)
     print(sine_string)
     t = lc.time.value
-    sine_string = sine_string.replace('2??', '2π')
+    #sine_string = sine_string.replace('2??', '2π')
     pattern = r'([+-]?\d*\.?\d+)\s*\*\s*sin\s*\(\s*2π\s*\*\s*([+-]?\d*\.?\d+)'
     
     matches = re.findall(pattern, sine_string)
@@ -1086,9 +1106,9 @@ def get_epsilon_value(star_name, sine_string):
     #sine_string = "0.0020 * np.sin(2* np.pi * (10.3376) * t + -0.2050) + 1 + 0.0017 * np.sin(np.pi * 2 * (12.4714) * t + -6.2832)"
     profile_func = create_model_function(sine_string)
 
-    mask = (np.isfinite(lc.flux.value.unmasked))
-    all_flux = lc.flux.value[mask]
-    all_time = lc.time.value[mask]
+    #mask = (np.isfinite(lc.flux.value.unmasked))
+    all_flux = lc.flux.value#[mask]
+    all_time = lc.time.value#[mask]
 
     true_time = []
     est_time = []
@@ -1143,6 +1163,9 @@ def get_epsilon_value(star_name, sine_string):
             t_est = t_est_list[np.argmin(np.abs(t_est_list-time[0]))]
             true_time.append(time[0])
             est_time.append(t_est)
+            if(np.abs(((np.array(true_time) - np.array(est_time)))[-1]) > 0.1):
+                true_time.pop()
+                est_time.pop()
 
    
     true_time = np.array(true_time)
@@ -1153,11 +1176,12 @@ def get_epsilon_value(star_name, sine_string):
     mask = time_diff > 3000
     gap_indices = np.where(mask)[0]
     segments = np.split(true_time, gap_indices+1)
-    
+ 
     # plotting
     tshift = int(np.floor((true_time[0] + OFFSET - 2400000.5)/100)*100)
-    margin = 0.5  # days
     """
+    margin = 0.5  # days
+    
     fig_oc, axs = pt.subplots(1, len(segments), figsize=(8,3), sharey=True, 
                             gridspec_kw={'wspace': 0, 'hspace': 0},
                             width_ratios=[seg[-1]-seg[0] + margin*2 for seg in segments])
@@ -1175,24 +1199,32 @@ def get_epsilon_value(star_name, sine_string):
                     segments[ii][-1]-tshift + OFFSET - 2400000.5 + margin)
     
     
-    
-    
     """
+    
+
     data = true_time-est_time
     m, b = np.polyfit(true_time-tshift + OFFSET - 2400000.5, data, 1)
-    
     x = true_time-tshift + OFFSET - 2400000.5
 
-    pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
+    #pt.plot(x, x*m + b, color = 'r', label = "Linear Drift", linestyle = '--')
     #fig_oc.supxlabel(f'Time (MJD) + {tshift}', fontsize=11, y=-0.05)
 
+    #pt.show()
 
-    pt.savefig(fr"C:\Users\ahmed\Downloads\new_eps_plots\KIC_{star_name}")
-    pt.close()
+    #pt.savefig(fr"C:\Users\ahmed\Downloads\new_eps_plots\KIC_{star_name}")
+    #pt.close()
     regression = x*m + b 
     residuals = data - regression 
     sig = np.std(residuals)
-    print(f" normalized eps {np.mean(true_time-est_time)/dsct_per}")
+    average_eps = np.mean(true_time-est_time)
+    print(f"average eps: { average_eps}")
+    print(f" normalized eps normalized {np.mean(true_time-est_time)/dsct_per}")
+    print(f"standard_dev: {sig}")
+    print(f"standard_dev norms: {sig/dsct_per}")
+    print(f"slope {m}")
+    print(f"slope norms {m/dsct_per}")
+
+    
     return true_time-est_time, sig, m, dsct_per
 
 
@@ -1204,8 +1236,8 @@ def get_csv_epsilon_value(csv_file_path):
         #if 'TIC_ID' not in df.columns:
         #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
         
-        KIC_list = df['KIC'].dropna().astype(str).tolist()
-        FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()
+        KIC_list = df['KIC'].dropna().astype(str).tolist()#[0:3]
+        FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()#[0:3]
         i = 0 
         master_list_eps = []
         while( i < len(KIC_list)):
@@ -1377,7 +1409,15 @@ def CompareTelescopes(nameOfStar, sine_string):
 
 
 def SpectralResiduals(nameOfStar, sine_string): 
-    lc = lk.search_lightcurve(f"KIC {nameOfStar}").download_all().stitch().remove_outliers(sigma = 5.0)
+    if (nameOfStar.startswith('V')):
+        df = pd.read_csv(fr'{nameOfStar}_SC_C4_SYDSAP.csv')
+
+        lc = lk.LightCurve(time = df['time'], flux = df['flux'],flux_err = df['flux_err'])  # preprocessed flux
+    else: 
+        lc_search = lk.search_lightcurve(nameOfStar, cadence='short')
+        print(lc_search)
+        lc = lc_search.download()
+    lc = lc.remove_nans().remove_outliers()
     signal = lc.flux.value
     t = lc.time.value
     sine_string = sine_string.replace('sin', 'np.sin')
@@ -1536,7 +1576,7 @@ def plotMap():
     pt.style.use(['science', 'no-latex'])
     #pt.rcParams.update({'figure.dpi': '500'})
 
-    with open(r"C:\Users\ahmed\Downloads\asu.tsv", 'r') as file:
+    with open(r"C:\Users\ahmed\Downloads\asu_.tsv", 'r') as file:
         lines = file.readlines()
 
     kic_list = []
@@ -1554,7 +1594,7 @@ def plotMap():
             continue
         
         
-        if line.startswith('_RAJ2000;_DEJ2000;KIC;RAJ2000;DEJ2000'):
+        if line.startswith('_RAJ2000;_DEJ2000;ID;RAJ2000;DEJ2000'):
             in_data_section = True
             continue
         
@@ -1583,13 +1623,13 @@ def plotMap():
     ra_array = np.array(ra_list)
     de_array = np.array(de_list)
     df = pd.DataFrame({
-    'KIC': kic_array,
+    'ID': kic_array,
     'Right Ascension': ra_array,
     'Declination': de_array})
     df.to_csv('star_data_locations.csv', index=False)
 
     
-    print("KIC array:", kic_array[:5])
+    print("ID array:", kic_array[:5])
     print("RA array (degrees):", ra_array[:5])
     print("DE array (degrees):", de_array[:5])
     print(f"Total entries: {len(kic_array)}")
@@ -1626,7 +1666,7 @@ def plotMap():
 def plotMap():
     pt.style.use(['science', 'no-latex'])
 
-    with open(r"C:\Users\ahmed\Downloads\asu.tsv", 'r') as file:
+    with open(r"C:\Users\ahmed\Downloads\asu_.tsv", 'r') as file:
         lines = file.readlines()
 
     kic_list = []
@@ -1640,7 +1680,7 @@ def plotMap():
         if line.startswith('#') or not line:
             in_data_section = False
             continue
-        if line.startswith('_RAJ2000;_DEJ2000;KIC;RAJ2000;DEJ2000'):
+        if line.startswith('_RAJ2000;_DEJ2000;ID;RAJ2000;DEJ2000'):
             in_data_section = True
             continue
         if line.startswith('deg;deg; ;deg;deg') or line.startswith('------------'):
@@ -1665,7 +1705,7 @@ def plotMap():
         'KIC': kic_array,
         'Right Ascension': ra_array,
         'Declination': de_array})
-    #df.to_csv('star_data_locations.csv', index=False)
+    
 
     print("KIC array:", kic_array[:5])
     print("RA array (degrees):", ra_array[:5])
@@ -1811,9 +1851,9 @@ def unpopular_clean_tess(csv_path):
         pt.plot(np.arange(len(M_f)), M_f, label = 'Model_clean')
         pt.title(f"KIC {KIC_list[i]} | TIC {TIC_list[i]}")
         pt.legend()
-        #pt.show()
-        pt.savefig(fr"C:\Users\ahmed\Downloads\NEW_TESS\pics\pic_TIC_{TIC_list[i]}.png")
-        pt.close()
+        pt.show()
+        #pt.savefig(fr"C:\Users\ahmed\Downloads\NEW_TESS\pics\pic_TIC_{TIC_list[i]}.png")
+        #pt.close()
         
         spectral_residual = np.sum(np.abs(S_f - M_f)**2)
        
@@ -1905,9 +1945,9 @@ def tess_clean_MAST(csv_path):
     #if 'TIC_ID' not in df.columns:
     #    raise ValueError("CSV does not contain a 'TIC_ID' column.")
     
-    TIC_list = df['TIC'].dropna().astype(str).tolist()[:10]
-    KIC_list = df['KIC'].dropna().astype(str).tolist()[:10]
-    FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()[:10]
+    TIC_list = df['TIC'].dropna().astype(str).tolist()#[:10]
+    KIC_list = df['KIC'].dropna().astype(str).tolist()#[:10]
+    FUNCTION_list = df['Composite Function'].dropna().astype(str).tolist()#[:10]
     i = 0 
     master_lists_tess_pop = []
  
@@ -2189,7 +2229,58 @@ def unpopular_clean_tess_plotting(csv_path):
     #df = pd.DataFrame(master_lists_tess_pop)
     #df.to_csv(fr"C:\Users\ahmed\Downloads\higher try\results.csv")
 
+def K2Pipeline(listofstars):
+    master_coefficients = []
+    for a in listofstars:
+        try:
+            function, lc, composite_string = getCompositeSine2_second_test(a)
+            plt.close('all')
+            flux = lc.flux.value
+            #print(flux)
+            #print(function)
+            time = lc.time.value
+            min_length = min(len(flux), len(function))
+            flux = flux[:min_length]
+            time = time[:min_length]
+            function = function[:min_length]
+            residuals = flux - function
+            MSE = np.sum((residuals)**2)/len(flux)
+            Amp = np.percentile(flux, 95) - np.percentile(flux, 50)
 
+            NRMSE = np.sqrt(MSE)/ Amp
+
+
+            eps_d, sig, m, dsct_per = get_epsilon_value(a, composite_string)
+
+            average_eps = np.mean(eps_d)
+            norm_avg_eps = average_eps/dsct_per
+            norm_sig = sig/dsct_per
+            norm_slope = m/dsct_per
+
+            spec_res, R2 = SpectralResiduals(a, composite_string)
+            plt.close('all')
+            print(a)
+            print(composite_string)
+            print(f"MSE: {MSE}")
+            print(f"RMSE: {NRMSE}")
+            print(f"average eps: {average_eps}")
+            print(f" normalized eps normalized {np.mean(eps_d)/dsct_per}")
+            print(f"standard_dev: {sig}")
+            print(f"standard_dev norms: {sig/dsct_per}")
+            print(f"slope {m}")
+            print(f"slope norms {m/dsct_per}")
+            print(f"R_LSP {R2}")
+
+
+
+            master_coefficients.append({'Name': a , 'MSE': MSE, 'RMSE': NRMSE, "Average Epsilon": average_eps, "Epsilon/P_MAX": norm_avg_eps, 
+                                        'slope': m, 'slope/P_MAX': norm_slope, 'standard dev': sig, 'standard dev/P_MAX': norm_sig, 'R2_LSP': R2, 'Composite Function': composite_string})
+        except Exception as e: 
+            print(e)
+            df = pd.DataFrame(master_coefficients)
+            df.to_csv("K2_pipeline_results.csv")
+    df = pd.DataFrame(master_coefficients)
+    df.to_csv("K2_pipeline_results.csv")
 
 
 #print(find_max_frequency("f(t) = 0.0047 * sin(2π * 1.0983 * t + 2.7960) + 0.7343 + 0.0005 * sin(2π * 1.5464 * t + 3.9936) + 0.0798 + 0.0012 * sin(2π * 2.0353 * t + 3.7956) + 0.1853"))
@@ -2212,6 +2303,19 @@ b = ['KIC 3429637', 'KIC 10451090', 'KIC 2987660']
 c = ['KIC 12602250' , 'KIC 9700322' , 'KIC 8197761' , 'KIC 8623953' ,  'KIC 6382916' ,'KIC 3429637']
 d = ['2987660' , '10451090' , '8197761' , '8623953' ,'3429637']
 e = ['2987660' ,'3429637']
+stars = [
+    "EPIC 211945791",
+    "EPIC 211115721",
+    "EPIC 211044267",
+    "EPIC 211914004",
+    "Fg Virginis",
+    "V1228Tau",
+    "V534Tau",
+    "V624Tau",
+    "V647Tau",
+    "V650Tau"
+]
+K2Pipeline(stars)
 #plotsidebysideactual("BN Cnc")
 
 #KIC 8197761!!!!!!!!' 'V593 Lyr',
@@ -2235,9 +2339,36 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
     #pt.show()
 #print(results)
 #get_epsilon_value()
+#plotsidebysideactual("EPIC 225406132")
 
+#plotMap()
+"""
+target = "EPIC 201367065"   # <-- change me (can also be K2-XX, HD..., etc.)
+search = lk.search_lightcurve(target, mission="K2", cadence="long", author = "K2")
+lcfs = search.download_all(quality_bitmask="hard")  # filters bad thruster/attitude flags
 
+# 2) Stitch all segments into one LightCurve
+lc = lcfs.stitch().remove_nans()
 
+# 3) (Optional) clip big outliers before systematics correction
+lc = lc.remove_outliers(sigma=6)
+
+# 4) Self Flat Fielding (SFF) correction for K2 roll systematics
+sff_corr = lc.to_corrector("sff").correct(
+    #window_length=101,      # length of rolling window (cadences)
+    #sigma=5,        # robust fit
+    #niters=3             # iterate to converge
+)
+
+# 5) Detrend long-term stellar variability (preserves transits if window > transit duration)
+flat = sff_corr.flatten(window_length=401, polyorder=2, niters=3, sigma=5 )
+
+# 6) Plot or save
+ax = lc.normalize().plot(label="Raw (stitch, masked)")
+sff_corr.normalize().plot(ax=ax, label="SFF corrected")
+flat.plot(ax=ax, label="Flattened")
+ax.legend()
+"""
 """
 eps, sig, m = get_epsilon_value("3429637", "f(t) = 0.0023 * sin(2π * 10.3376 * t + -0.2375) + 0.4865 + 0.0005 * sin(2π * 10.9363 * t + -6.2832) + 0.1066 + 0.0018 * sin(2π * 12.4714 * t + -6.2832) + 0.4069")
 print(f"average eps {np.average(eps)}")
@@ -2281,6 +2412,7 @@ eps, sig = SpectralResiduals("12268220", "f(t) = 0.0006 * sin(2π * 1.3580 * t +
 #        print(e)
 #print(SpectralResiduals("3429637", "f(t) = 0.0023 * sin(2π * 10.3376 * t + -0.2375) + 0.4865 + 0.0005 * sin(2π * 10.9363 * t + -6.2832) + 0.1066 + 0.0018 * sin(2π * 12.4714 * t + -6.2832) + 0.4069"))
 """ 
+#plotsidebysideactual("V1228Tau")
 #print(getCompositeSine2_second_test("12602250"))
 #print(getCompositeSine2_second_test("12268220"))
 #half = int(len(eps)/2)
@@ -2332,8 +2464,34 @@ eps, sig = SpectralResiduals("12268220", "f(t) = 0.0006 * sin(2π * 1.3580 * t +
 #getPeriodogramData('KIC 3429637')
 #identifyPeaks('KIC 3429637')
 #seriesofstarsTest(load_tic_ids_from_csv(r"C:\Users\ahmed\research_delta\tic_ids.csv"))
-pt.show()
+#plotsidebysideactual("V534Tau")
+#function ="f(t) = 0.0005 * sin(2π * 15.5162 * t + -6.2832) + 0.0922 + 0.0008 * sin(2π * 20.2271 * t + -6.2832) + 0.1529 + 0.0008 * sin(2π * 21.8548 * t + -6.2832) + 0.1528 + 0.0005 * sin(2π * 26.5828 * t + -6.2832) + 0.0901 + 0.0005 * sin(2π * 27.8493 * t + -6.2832) + 0.0908 + 0.0009 * sin(2π * 32.6452 * t + -6.2832) + 0.1705 + 0.0014 * sin(2π * 38.7157 * t + -6.2832) + 0.2508" #"f(t) = 0.0005 * sin(2π * 18.8165 * t + -6.2832) + 0.1155 + 0.0008 * sin(2π * 20.9827 * t + -6.2832) + 0.1665 + 0.0010 * sin(2π * 35.7138 * t + -6.2832) + 0.2096 + 0.0014 * sin(2π * 39.0315 * t + -6.2832) + 0.2933 + 0.0010 * sin(2π * 42.2784 * t + -6.2832) + 0.2152"
+#get_epsilon_value("a", function)
+#pt.show()
+"""
+plotMap()
+"211945791"
+"211115721"
+"211088007" #--> need to clean" 
+"211044267"
+"211914004"
+#δ Scuti
+"FG Virginis"
+star_name = "FG Virginis" 
+a = lk.search_lightcurve(star_name, cadence='short').download()
+print(lk.search_lightcurve(star_name))
+a= a.remove_outliers().normalize()
 
+print(a.time)
+plt.plot(a.time.value, a.flux.value)
+plt.figure() 
+x = a.to_periodogram()
+plt.plot(x.frequency.value, x.power.value)
+plt.show()
+#lk.search_lightcurve(star_name, mission='K2')
+a.plot()
+#ax = og_lc.scatter()
+"""
 
 """
 81976
@@ -2461,5 +2619,56 @@ e_j: 0.0017426940929555455
  percent: 157.21327150761368
 ----------------
 
+V1228Tau
+f(t) = 0.0031 * sin(2π * 32.5402 * t + -6.2832) + 1.0000
+Dominant mode period: 0.03073121861574299
+average eps: 0.0023877294148451256
+ normalized eps normalized 0.07769719270494335
+standard_dev: 0.0002086707768499851
+standard_dev norms: 0.006790188812853885
+slope -2.4116680129949285e-05
+slope norms -0.0007847615947645757
+
+Composite Sine Function for V647Tau:
+f(t) = 0.0007 * sin(2π * 18.6890 * t + -6.2832) + 0.0961 + 0.0014 * sin(2π * 20.4404 * t + -6.2832) + 0.1898 + 0.0010 * sin(2π * 26.3236 * t + -6.2832) + 0.1394 + 0.0010 * sin(2π * 27.2635 * t + -6.2832) + 0.1373 + 0.0012 * sin(2π * 32.3517 * t + -6.2832) + 0.1605 + 0.0005 * sin(2π * 35.0490 * t + -6.2832) + 0.0672 + 0.0016 * sin(2π * 38.3737 * t + -6.2832) + 0.2096
+Dominant mode period: 0.02605951471971689
+average eps: 0.001512097259987322
+ normalized eps normalized 0.0580247666255755
+standard_dev: 0.0001775635705590804
+standard_dev norms: 0.006813771187562983
+slope 3.275979670998522e-05
+slope norms 0.0012571146110099598
+
+Composite Sine Function for V650Tau:
+f(t) = 0.0019 * sin(2π * 17.0448 * t + -6.2832) + 0.3462 + 0.0008 * sin(2π * 18.4387 * t + -6.2832) + 0.1578 + 0.0027 * sin(2π * 32.6339 * t + -6.2832) + 0.4960
+Dominant mode period: 0.03064298168468985
+average eps: -0.0039684178261250235
+normalized eps normalized -0.1295049504959814
+standard_dev: 0.004660676862485199
+standard_dev norms: 0.1520960626626557
+slope 3.3901078460203916e-05
+slope norms 0.0011063244043624486
+
+Composite Sine Function for V624Tau:
+f(t) = 0.0005 * sin(2π * 18.8165 * t + -6.2832) + 0.1155 + 0.0008 * sin(2π * 20.9827 * t + -6.2832) + 0.1665 + 0.0010 * sin(2π * 35.7138 * t + -6.2832) + 0.2096 + 0.0014 * sin(2π * 39.0315 * t + -6.2832) + 0.2933 + 0.0010 * sin(2π * 42.2784 * t + -6.2832) + 0.2152
+Dominant mode period: 0.025620332295709876
+average eps: -0.0010273251515915641
+ normalized eps normalized -0.040098041654346134
+standard_dev: 0.0003381391385641821
+standard_dev norms: 0.013198077786867874
+slope -7.01304232503638e-06
+slope norms -0.00027372956150965746
+
+Composite Sine Function for V534Tau:
+f(t) = 0.0005 * sin(2π * 15.5162 * t + -6.2832) + 0.0922 + 0.0008 * sin(2π * 20.2271 * t + -6.2832) + 0.1529 + 0.0008 * sin(2π * 21.8548 * t + -6.2832) + 0.1528 + 0.0005 * sin(2π * 26.5828 * t + -6.2832) + 0.0901 + 0.0005 * sin(2π * 27.8493 * t + -6.2832) + 0.0908 + 0.0009 * sin(2π * 32.6452 * t + -6.2832) + 0.1705 + 0.0014 * sin(2π * 38.7157 * t + -6.2832) + 0.2508
+Dominant mode period: 0.0258293147224511
+average eps: 0.0009270030129964708
+normalized eps normalized 0.03588957055026746
+standard_dev: 0.006715230372826957
+standard_dev norms: 0.2599848445452566
+slope -5.78779846580247e-07
+slope norms -2.240786690624687e-05
+
 """
+#plotMap()
 #get_csv_epsilon_value(r"C:\Users\ahmed\Downloads\nav_sets.csv")
