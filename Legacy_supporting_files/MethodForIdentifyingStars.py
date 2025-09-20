@@ -2236,6 +2236,16 @@ somestars = ["9653684", "9469972", "9531319", "9775887", "9593837", "9896552", "
 #print(results)
 #get_epsilon_value()
 
+nameOfStar = "KIC 3429637"
+
+y = lk.search_lightcurve(nameOfStar, quarter=(6,7,8)).download_all().stitch().remove_outliers(sigma = 5.0)
+pt.scatter(y.time.value, y.flux.value, s = 2, color = "black")
+pt.xlabel("Time -2454833 [BKJD Days]")
+pt.ylabel("Normalized Flux")
+pt.tight_layout()
+pt.show()
+
+
 
 
 """
